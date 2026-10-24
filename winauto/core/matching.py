@@ -42,7 +42,10 @@ def score(query: str, candidate: str) -> float:
         return 88.0
     if all(any(ct.startswith(qt) for ct in c_tokens) for qt in q_tokens):
         return 80.0 + 8.0 * ratio
-    return fuzz.WRatio(q, c) * 0.85
+    if len(qc) >= 5 and qc in cc:  # "photo shop" -> "Adobe Photoshop"
+        return 85.0
+    # Typos ("spotfiy") score well on plain ratio; partial matches are riskier.
+    return max(fuzz.ratio(qc, cc) * 0.95, fuzz.WRatio(q, c) * 0.8)
 
 
 def rank(query: str, choices: Iterable[str], limit: int = 5, cutoff: float = 75.0) -> list[tuple[str, float]]:

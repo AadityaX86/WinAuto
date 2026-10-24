@@ -138,6 +138,8 @@ class Tool:
     confirm_label: str = "Approve"
     preview: Callable[[dict[str, Any]], str] | None = None
     skill: str = ""
+    # Hide the popup after this runs successfully (it opened something on screen).
+    hides_popup: bool = False
 
     def schema(self) -> dict[str, Any]:
         return {
@@ -227,6 +229,7 @@ def tool(
     editable: tuple[str, ...] = (),
     confirm_label: str = "Approve",
     name: str | None = None,
+    hides_popup: bool = False,
 ) -> Callable:
     """Mark a Skill method as a tool. `params` maps argument name -> description."""
 
@@ -239,6 +242,7 @@ def tool(
             "editable": editable,
             "confirm_label": confirm_label,
             "name": name or fn.__name__,
+            "hides_popup": hides_popup,
         }
         return fn
 
@@ -253,6 +257,8 @@ class QuickRule:
 
     pattern: str
     handler: Callable[[Any], tuple[str, dict[str, Any]] | None]
+    # Lower runs first, across all skills.
+    priority: int = 50
 
 
 class Skill:
@@ -324,6 +330,7 @@ class Skill:
                     confirm_label=meta["confirm_label"],
                     preview=make_preview(tool_name),
                     skill=self.name,
+                    hides_popup=meta["hides_popup"],
                 )
             )
         return found

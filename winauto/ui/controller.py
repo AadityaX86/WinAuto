@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 import threading
 
-from PySide6.QtCore import QObject, Signal
+from PySide6.QtCore import QObject, QTimer, Signal
 
 from winauto.core.agent import AgentReply, ConfirmRequest, Decision
 from winauto.ui.popup import ConfirmCard, PopupWindow
@@ -107,6 +107,23 @@ class Controller(QObject):
         self._busy = False
         self.popup.set_busy(False)
         self.popup.add_reply(reply)
+        if self._should_hide(reply):
+            QTimer.singleShot(1200, lambda g=gen: self._auto_hide(g))
+
+    def _should_hide(self, reply: AgentReply) -> bool:
+        """After 'open spotify' the popup gets out of the way, like Start search does."""
+        registry = getattr(self.runtime, "registry", None)
+        if registry is None or not reply.steps or reply.error:
+            return False
+        for step in reply.steps:
+            t = registry.get(step.tool)
+            if not (t and t.hides_popup and step.result.ok):
+                return False
+        return True
+
+    def _auto_hide(self, gen: int) -> None:
+        if gen == self._generation and not self._busy and not self.popup.input.text():
+            self.popup.hide()
 
     def _show_card(self, pending: _Pending) -> None:
         card = self.popup.add_card(pending.request)

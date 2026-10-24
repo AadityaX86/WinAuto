@@ -49,18 +49,19 @@ class QuickMatcher:
         cleaned = clean_command(text)
         if not cleaned or len(cleaned) > 120:
             return None
-        for skill in self.registry.skills:
-            for rule in skill.quick_rules():
-                m = re.fullmatch(rule.pattern, cleaned, re.I)
-                if not m:
-                    continue
-                try:
-                    found = rule.handler(m)
-                except Exception:
-                    log.exception("quick rule %s failed", rule.pattern)
-                    continue
-                if found:
-                    name, args = found
-                    if self.registry.get(name):
-                        return ToolCall(name=name, arguments=args)
+        rules = [rule for skill in self.registry.skills for rule in skill.quick_rules()]
+        rules.sort(key=lambda r: r.priority)  # stable: skill order breaks ties
+        for rule in rules:
+            m = re.fullmatch(rule.pattern, cleaned, re.I)
+            if not m:
+                continue
+            try:
+                found = rule.handler(m)
+            except Exception:
+                log.exception("quick rule %s failed", rule.pattern)
+                continue
+            if found:
+                name, args = found
+                if self.registry.get(name):
+                    return ToolCall(name=name, arguments=args)
         return None
