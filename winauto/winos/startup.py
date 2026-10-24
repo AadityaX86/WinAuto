@@ -29,7 +29,8 @@ def set_start_with_windows(enabled: bool) -> None:
         return
     import winreg
 
-    with winreg.OpenKey(winreg.HKEY_CURRENT_USER, RUN_KEY, 0, winreg.KEY_SET_VALUE) as key:
+    # CreateKeyEx also opens it; the Run key doesn't exist on some fresh accounts.
+    with winreg.CreateKeyEx(winreg.HKEY_CURRENT_USER, RUN_KEY, 0, winreg.KEY_SET_VALUE) as key:
         if enabled:
             winreg.SetValueEx(key, VALUE, 0, winreg.REG_SZ, launch_command())
         else:
