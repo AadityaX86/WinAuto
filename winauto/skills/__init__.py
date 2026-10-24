@@ -14,6 +14,8 @@ log = logging.getLogger(__name__)
 BUILTIN: list[tuple[str, str]] = [
     ("apps", "AppsSkill"),
     ("notes", "NotesSkill"),
+    ("web", "WebSkill"),
+    ("utils", "UtilsSkill"),
 ]
 
 
