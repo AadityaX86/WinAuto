@@ -1,0 +1,49 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "winauto"
+version = "0.1.0"
+description = "A local-AI assistant that does everyday Windows tasks."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+  "PySide6>=6.6",
+  "psutil>=5.9",
+  "rapidfuzz>=3.0",
+  "keyring>=24",
+  "send2trash>=1.8",
+  "Pillow>=10",
+  "pycaw>=20240210; sys_platform == 'win32'",
+  "comtypes>=1.2; sys_platform == 'win32'",
+  "tzdata; sys_platform == 'win32'",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "pyinstaller>=6", "ruff>=0.5"]
+
+[project.gui-scripts]
+winauto = "winauto.app:main"
+
+[project.scripts]
+winauto-cli = "winauto.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["winauto*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 130
+target-version = "py311"
+extend-exclude = ["build", "dist"]
+
+[tool.ruff.lint]
+# Pyflakes (unused/undefined names), syntax errors, import order.
+select = ["F", "E9", "I"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["winauto"]
+
