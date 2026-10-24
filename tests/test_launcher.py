@@ -1,13 +1,19 @@
 from __future__ import annotations
 
 import pytest
-
 from fakes import RecordingConfirmer, ScriptedLLM
 from test_apps import FakeWindowsApps
 from test_phase3 import FakeClipboard
+
 from winauto.core.launcher import ASK_TOOL
 from winauto.skills.shortcuts import ShortcutsSkill, fill_placeholders
-from winauto.skills.tools import ToolsSkill, color_formats, make_password, parse_color, search_emoji
+from winauto.skills.tools import (
+    ToolsSkill,
+    color_formats,
+    make_password,
+    parse_color,
+    search_emoji,
+)
 
 
 @pytest.fixture
@@ -15,7 +21,7 @@ def runtime(ctx):
     from winauto.runtime import Runtime
 
     rt = Runtime(RecordingConfirmer(), db=ctx.db, llm=ScriptedLLM())
-    apps = rt.ctx.services["skills"]["apps"]
+    apps = rt.ctx.skill("apps")
     apps.backend = FakeWindowsApps()
     apps.refresh()
     return rt
@@ -67,7 +73,7 @@ def test_launcher_quick_command_result(runtime):
 
 
 def test_launcher_notes_routines_contacts(runtime):
-    skills = runtime.ctx.services["skills"]
+    skills = runtime.ctx.skills
     skills["notes"].add_note("Wifi password is on the router", title="Wifi password")
     skills["routines"].create_routine("work mode", ["todo check email"])
     skills["contacts"].add_contact("Sita Karki", email="sita@example.com")

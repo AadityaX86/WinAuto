@@ -8,8 +8,9 @@ from __future__ import annotations
 import time
 from typing import Any, Literal
 
-from winauto.core.skill import QuickRule, Skill, ToolResult, fail, ok, tool
 from winauto.adapters.winos import NotOnWindows
+from winauto.core.context import Context
+from winauto.core.skill import QuickRule, Skill, ToolResult, fail, ok, tool
 
 ACTIONS: dict[str, tuple[str, str, str]] = {
     # key: (button label, icon, instruction)
@@ -31,13 +32,14 @@ SYSTEM = ("You transform text for the user. Output only the resulting text: no p
 
 class TextActionsSkill(Skill):
     name = "textactions"
+    icon = "sparkles"
     description = "Rewrite, fix, shorten, translate, summarize or explain text."
     keywords = (r"\b(rewrite|rephrase|proofread|grammar|spelling|shorter|longer|formal|casual|polite|translate|"
                 r"summari[sz]e|bullet|explain this|selected text|selection)\b")
     prompt_hint = ("Text: to change text the user selected or copied, call transform_text (leave text empty to use "
                    "their selection or clipboard).")
 
-    def __init__(self, ctx: Any, clipboard: Any = None, paste: Any = None):
+    def __init__(self, ctx: Context, clipboard: Any = None, paste: Any = None):
         super().__init__(ctx)
         self._clipboard = clipboard
         self._paste = paste
@@ -49,10 +51,14 @@ class TextActionsSkill(Skill):
             self._clipboard = WindowsClipboard()
         return self._clipboard
 
+    def menu(self) -> list[tuple[str, str, str]]:
+        """(key, button label, icon) for each one-click writing action."""
+        return [(key, label, icon) for key, (label, icon, _) in ACTIONS.items()]
+
     def _source_text(self, text: str) -> str:
         if text.strip():
             return text
-        selected = self.ctx.services.get("selection") or ""
+        selected = self.ctx.host.selection
         if selected.strip():
             return selected
         try:
@@ -73,8 +79,8 @@ class TextActionsSkill(Skill):
         source = self._source_text(text).strip()
         if not source:
             return fail("Select or copy some text first, then try again.")
-        complete = self.ctx.services.get("complete")
-        if not callable(complete):
+        assistant = self.ctx.assistant
+        if assistant is None:
             return fail("The AI model isn't available.")
         if action == "custom":
             if not instruction.strip():
@@ -85,7 +91,7 @@ class TextActionsSkill(Skill):
         if len(source) > 12000:
             source = source[:12000]
         try:
-            result = complete(SYSTEM, f"{task}\n\nText:\n\"\"\"\n{source}\n\"\"\"", stream=True).strip()
+            result = assistant.complete(SYSTEM, f"{task}\n\nText:\n\"\"\"\n{source}\n\"\"\"", stream=True).strip()
         except Exception as exc:  # LLMError and friends
             return fail(str(exc))
         result = result.strip().strip('"').strip()
@@ -105,12 +111,10 @@ class TextActionsSkill(Skill):
         if self._paste is not None:
             self._paste()
             return ok("Replaced.")
-        hwnd = self.ctx.services.get("last_window")
+        hwnd = self.ctx.host.last_window
         if not hwnd:
             return ok("Copied. Press Ctrl+V where you want it.")
-        hide = self.ctx.services.get("hide_popup")
-        if callable(hide):
-            hide()
+        self.ctx.host.hide()
         try:
             from winauto.adapters.winos.apps import focus_window
             from winauto.adapters.winos.keyboard import press

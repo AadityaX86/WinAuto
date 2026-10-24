@@ -15,16 +15,6 @@ log = logging.getLogger(__name__)
 ASK_TOOL = "__ask__"  # not a real tool: send the text to the assistant
 MAX_RESULTS = 8
 
-# Icons for quick-command results, by skill.
-SKILL_ICONS = {
-    "apps": "app", "notes": "note", "web": "globe", "utils": "calculator", "system": "settings",
-    "contacts": "user", "reminders": "bell", "email": "mail", "whatsapp": "message", "discord": "message",
-    "files": "folder", "clipboard": "clipboard", "media": "music", "windows": "layout", "routines": "zap",
-    "shortcuts": "link", "tools": "tool", "memory": "brain", "info": "book", "focus": "target",
-    "calendar": "calendar", "textactions": "sparkles", "vision": "eye", "voice": "mic", "briefing": "sun",
-}
-
-
 def ask_suggestion(text: str, score: float) -> Suggestion:
     return Suggestion(title=text, subtitle="Ask WinAuto", tool=ASK_TOOL, args={"text": text},
                       kind="Ask AI", icon="sparkles", score=score)
@@ -52,18 +42,18 @@ class Launcher:
                 log.debug("suggest() in %s took %.0f ms", skill.name, took)
             for s in found:
                 if not s.icon:
-                    s.icon = SKILL_ICONS.get(skill.name, "dot")
+                    s.icon = skill.icon
             results += found
 
         call = self.quick.match(text)
         if call is not None:
             tool = self.registry.get(call.name)
-            skill = tool.skill if tool else ""
+            owner = self.registry.skill(tool.skill) if tool else None
             label = call.name.replace("_", " ")
             results.append(Suggestion(
                 title=clean_command(text, keep_punctuation=True)[:1].upper() + clean_command(text, keep_punctuation=True)[1:],
                 subtitle=f"Run · {label}", tool=call.name, args=call.arguments, kind="Command",
-                icon=SKILL_ICONS.get(skill, "zap"), score=92,
+                icon=owner.icon if owner else "zap", score=92,
             ))
 
         # Longer sentences are probably meant for the assistant; short words for a launcher result.

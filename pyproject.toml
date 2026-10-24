@@ -21,7 +21,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8", "pyinstaller>=6"]
+dev = ["pytest>=8", "pyinstaller>=6", "ruff>=0.5"]
 
 [project.gui-scripts]
 winauto = "winauto.app:main"
@@ -34,3 +34,16 @@ include = ["winauto*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 130
+target-version = "py311"
+extend-exclude = ["build", "dist"]
+
+[tool.ruff.lint]
+# Pyflakes (unused/undefined names), syntax errors, import order.
+select = ["F", "E9", "I"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["winauto"]
+

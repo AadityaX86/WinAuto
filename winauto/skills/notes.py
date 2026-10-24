@@ -7,9 +7,18 @@ from datetime import datetime, timedelta
 from typing import Any, Literal
 
 from winauto.core.matching import rank
-from winauto.core.skill import QuickRule, Risk, Skill, Suggestion, ToolResult, fail, ok, tool
-from winauto.core.timeparse import describe, find_when, parse_when
-from winauto.adapters.storage.db import now_iso
+from winauto.core.skill import (
+    QuickRule,
+    Risk,
+    Skill,
+    Suggestion,
+    ToolResult,
+    Widget,
+    fail,
+    ok,
+    tool,
+)
+from winauto.core.timeparse import describe, find_when, now_iso, parse_when
 
 
 def _ago(stamp: str) -> str:
@@ -40,6 +49,7 @@ def _first_words(text: str, n: int = 6) -> str:
 
 class NotesSkill(Skill):
     name = "notes"
+    icon = "note"
     description = "Notes and todo list."
     keywords = r"\b(notes?|todos?|to-?do|tasks?|lists?|remember|jot|write down|saved?|done|finish|complete|due|overdue|deadline|password|where did i)\b"
     prompt_hint = (
@@ -301,6 +311,16 @@ class NotesSkill(Skill):
         return None
 
     # ---------- launcher ----------
+
+    def widgets(self) -> list[Widget]:
+        end_of_day = datetime.combine(datetime.now().date(), datetime.max.time()).isoformat(sep=" ")
+        open_n = self.db.one("SELECT COUNT(*) AS n FROM todos WHERE done = 0")["n"]
+        if not open_n:
+            return []
+        due = self.db.one("SELECT COUNT(*) AS n FROM todos WHERE done = 0 AND due_at IS NOT NULL AND due_at <= ?",
+                          (end_of_day,))["n"]
+        text = f"{due} due today" if due else f"{open_n} open todo{'s' if open_n != 1 else ''}"
+        return [Widget("check", text, order=10)]
 
     def suggest(self, query: str) -> list[Suggestion]:
         q = query.strip().lower()

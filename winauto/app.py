@@ -68,6 +68,8 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     # Imported after QApplication exists.
+    from winauto.adapters.winos.hotkey import HotkeyListener
+    from winauto.adapters.winos.startup import set_start_with_windows
     from winauto.config import load_config
     from winauto.runtime import Runtime
     from winauto.ui.async_util import run_async
@@ -76,8 +78,6 @@ def main(argv: list[str] | None = None) -> int:
     from winauto.ui.settings import SettingsDialog
     from winauto.ui.theme import app_icon, apply_palette, base_font, palette, stylesheet
     from winauto.ui.tray import Tray, pretty_hotkey
-    from winauto.adapters.winos.hotkey import HotkeyListener
-    from winauto.adapters.winos.startup import set_start_with_windows
 
     config = load_config()
     icon = app_icon()
@@ -112,8 +112,9 @@ def main(argv: list[str] | None = None) -> int:
 
     runtime = Runtime(confirmer, config=config, notify=tray.notify, on_status=controller.on_status)
     controller.attach(runtime)
-    runtime.ctx.services["show_popup"] = signals.show.emit
-    runtime.ctx.services["hide_popup"] = signals.hide.emit
+    # The desktop shell skills see through ctx.host (thread-safe: these emit Qt signals).
+    runtime.ctx.host.show_popup = signals.show.emit
+    runtime.ctx.host.hide_popup = signals.hide.emit
 
     def show_popup() -> None:
         was_visible = popup.isVisible()
@@ -140,7 +141,7 @@ def main(argv: list[str] | None = None) -> int:
 
                 hwnd = WindowsLayout().foreground()
                 if hwnd and hwnd != popup_hwnd:
-                    runtime.ctx.services["last_window"] = hwnd
+                    runtime.ctx.host.last_window = hwnd
             except Exception:
                 log.debug("couldn't read the foreground window", exc_info=True)
 
@@ -190,7 +191,7 @@ def main(argv: list[str] | None = None) -> int:
         tray.set_hotkey(runtime.config.hotkey)
 
     def open_settings() -> None:
-        skills = [(s.name, s.description) for s in runtime.registry.skills]
+        skills = [(s.name, s.description, s.icon) for s in runtime.registry.skills]
         dialog = SettingsDialog(runtime.config, popup if popup.isVisible() else None, skills=skills, palette=pal)
         state["settings"] = dialog
 

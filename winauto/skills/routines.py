@@ -9,9 +9,17 @@ import time
 from typing import Any
 
 from winauto.core.matching import normalize, rank
-from winauto.core.skill import QuickRule, Risk, Skill, Suggestion, ToolResult, fail, ok, tool
-from winauto.core.timeparse import parse_duration
-from winauto.adapters.storage.db import now_iso
+from winauto.core.skill import (
+    QuickRule,
+    Risk,
+    Skill,
+    Suggestion,
+    ToolResult,
+    fail,
+    ok,
+    tool,
+)
+from winauto.core.timeparse import now_iso, parse_duration
 
 log = logging.getLogger(__name__)
 WAIT_RE = re.compile(r"(?:wait|pause|sleep)\s+(?:for\s+)?(?P<d>.+)", re.I)
@@ -19,6 +27,7 @@ WAIT_RE = re.compile(r"(?:wait|pause|sleep)\s+(?:for\s+)?(?P<d>.+)", re.I)
 
 class RoutinesSkill(Skill):
     name = "routines"
+    icon = "zap"
     description = "Saved routines that run several commands."
     keywords = r"\b(routines?|mode|morning|evening|night|work|study|focus|gaming|start my day|shortcut|macro)\b"
     prompt_hint = (
@@ -41,8 +50,8 @@ class RoutinesSkill(Skill):
     def _understood(self, step: str) -> bool:
         if WAIT_RE.fullmatch(step.strip()):
             return bool(parse_duration(WAIT_RE.fullmatch(step.strip())["d"]))
-        match = self.ctx.services.get("quick_match")
-        return bool(match and match(step))
+        assistant = self.ctx.assistant
+        return bool(assistant and assistant.match_command(step))
 
     @tool(
         "Save a routine: a name and the simple commands it runs, in order.",
@@ -69,9 +78,8 @@ class RoutinesSkill(Skill):
         routine = self._get(name)
         if not routine:
             return fail(f"There's no routine called “{name}”.", fallback=True)
-        match = self.ctx.services.get("quick_match")
-        run = self.ctx.services.get("run_tool")
-        if not (match and run):
+        assistant = self.ctx.assistant
+        if assistant is None:
             return fail("Routines aren't available right now.")
         done, problems = [], []
         for step in json.loads(routine["steps"]):
@@ -79,14 +87,14 @@ class RoutinesSkill(Skill):
             if wait:
                 time.sleep(min(parse_duration(wait["d"]) or 0, 60))
                 continue
-            call = match(step)
+            call = assistant.match_command(step)
             if call is None:
                 problems.append(f"“{step}” (not understood)")
                 continue
             if call.name == "run_routine":
                 problems.append(f"“{step}” (routines can't run routines)")
                 continue
-            result = run(call)
+            result = assistant.run_tool(call)
             (done if result.ok else problems).append(step if result.ok else f"“{step}”: {result.message}")
         if problems:
             return ok(f"Ran “{routine['name']}”: {len(done)} step(s) worked. Problems: " + "; ".join(problems))

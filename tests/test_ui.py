@@ -12,6 +12,7 @@ QtWidgets = pytest.importorskip("PySide6.QtWidgets")
 
 from fakes import ScriptedLLM  # noqa: E402
 from test_core import Demo  # noqa: E402
+
 from winauto.config import Config  # noqa: E402
 from winauto.core.agent import Agent  # noqa: E402
 from winauto.core.registry import Registry  # noqa: E402
@@ -34,14 +35,26 @@ def wait_for(app, predicate, timeout=5.0):
 
 
 class _Runtime:
-    def __init__(self, agent):
+    """The parts of winauto.runtime.Runtime the controller uses."""
+
+    def __init__(self, agent, ctx):
+        from winauto.services.home import HomeService
+        from winauto.services.voice import VoiceService
+        from winauto.services.writing import WritingTools
+
         self.agent = agent
         self.registry = agent.registry
+        self.ctx = ctx
+        self.config = ctx.config
+        self.home = HomeService(ctx, self.registry)
+        self.writing = WritingTools(ctx)
+        self.voice = VoiceService(ctx)
 
 
-def _setup(qapp, llm):
+def _setup(qapp, ctx, llm):
+    from winauto.ui.cards import ConfirmCard
     from winauto.ui.controller import Controller, QtConfirmer
-    from winauto.ui.popup import ConfirmCard, PopupWindow
+    from winauto.ui.popup import PopupWindow
     from winauto.ui.theme import DARK
 
     popup = PopupWindow(DARK)
@@ -50,7 +63,7 @@ def _setup(qapp, llm):
     reg = Registry()
     skill = Demo()
     reg.add(skill)
-    controller.runtime = _Runtime(Agent(reg, llm, confirmer, on_status=controller.on_status))
+    controller.runtime = _Runtime(Agent(reg, llm, confirmer, on_status=controller.on_status), ctx)
     return popup, controller, skill, ConfirmCard
 
 
@@ -62,9 +75,9 @@ def _bubble_texts(popup):
     return [w.text() for w in popup.conversation.findChildren(QtWidgets.QLabel) if w.objectName() == "BotBubble"]
 
 
-def test_full_request_with_confirmation(qapp):
+def test_full_request_with_confirmation(qapp, ctx):
     llm = ScriptedLLM(("send", {"to": "bo", "body": "draft"}))
-    popup, controller, skill, card_cls = _setup(qapp, llm)
+    popup, controller, skill, card_cls = _setup(qapp, ctx, llm)
     popup.input.setText("tell bo hi")
     popup._submit()
     assert wait_for(qapp, lambda: _cards(popup, card_cls))
@@ -76,9 +89,9 @@ def test_full_request_with_confirmation(qapp):
     assert not popup.is_busy() and popup.mode == "chat"
 
 
-def test_stop_cancels_waiting_card(qapp):
+def test_stop_cancels_waiting_card(qapp, ctx):
     llm = ScriptedLLM(("send", {"to": "bo", "body": "draft"}))
-    popup, controller, skill, card_cls = _setup(qapp, llm)
+    popup, controller, skill, card_cls = _setup(qapp, ctx, llm)
     controller.submit("tell bo hi")
     assert wait_for(qapp, lambda: _cards(popup, card_cls))
     controller.stop()

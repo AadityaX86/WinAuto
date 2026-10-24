@@ -10,10 +10,16 @@ import threading
 from datetime import datetime, timedelta
 from typing import Any, Callable, Literal
 
+from winauto.core.context import Context
 from winauto.core.matching import rank
-from winauto.core.skill import QuickRule, Skill, ToolResult, fail, ok, tool
-from winauto.core.timeparse import describe, find_when, parse_duration, parse_when
-from winauto.adapters.storage.db import now_iso
+from winauto.core.skill import QuickRule, Skill, ToolResult, Widget, fail, ok, tool
+from winauto.core.timeparse import (
+    describe,
+    find_when,
+    now_iso,
+    parse_duration,
+    parse_when,
+)
 
 log = logging.getLogger(__name__)
 
@@ -58,11 +64,12 @@ def _play_sound(kind: str) -> None:
 
 class RemindersSkill(Skill):
     name = "reminders"
+    icon = "bell"
     description = "Reminders and timers."
     keywords = r"\b(remind|reminders?|timers?|alarms?|wake me|countdown|in \d+ (?:min|minutes?|hours?|seconds?))\b"
     prompt_hint = "Reminders: pass 'when' in the user's own words, e.g. 'tomorrow 9am' or 'in 20 minutes'."
 
-    def __init__(self, ctx: Any, clock: Callable[[], datetime] = datetime.now, sound: Callable[[str], None] = _play_sound):
+    def __init__(self, ctx: Context, clock: Callable[[], datetime] = datetime.now, sound: Callable[[str], None] = _play_sound):
         super().__init__(ctx)
         self.clock = clock
         self.sound = sound
@@ -220,6 +227,14 @@ class RemindersSkill(Skill):
         return ok(f"Cancelled: {target['text']}")
 
     # ----- quick commands -----
+
+    def widgets(self) -> list[Widget]:
+        nxt = self.ctx.db.one("SELECT text, due_at FROM reminders WHERE active = 1 ORDER BY due_at LIMIT 1")
+        if not nxt:
+            return []
+        when, now = datetime.fromisoformat(nxt["due_at"]), self.clock()
+        stamp = when.strftime("%I:%M %p").lstrip("0") if when.date() == now.date() else when.strftime("%a %I:%M %p")
+        return [Widget("bell", f"{nxt['text'][:28]} · {stamp}", order=20)]
 
     def quick_rules(self) -> list[QuickRule]:
         def remind(m):

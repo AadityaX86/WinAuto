@@ -13,10 +13,21 @@ from typing import Any, Callable, Iterator
 
 from rapidfuzz import fuzz
 
-from winauto.core.matching import normalize
-from winauto.core.skill import QuickRule, Risk, Skill, Suggestion, ToolResult, fail, ok, tool
 from winauto.adapters.winos.folders import folder as known_folder
-from winauto.adapters.winos.shell import open_target
+from winauto.adapters.winos.shell import move_to_trash, open_target
+from winauto.core.context import Context
+from winauto.core.matching import normalize
+from winauto.core.skill import (
+    QuickRule,
+    Risk,
+    Skill,
+    Suggestion,
+    ToolResult,
+    fail,
+    ok,
+    tool,
+)
+from winauto.skills.shared.format import human_size
 
 log = logging.getLogger(__name__)
 
@@ -64,14 +75,6 @@ def kind_of(path: Path) -> str:
     return "other"
 
 
-def human_size(n: float) -> str:
-    for unit in ("B", "KB", "MB", "GB"):
-        if n < 1024:
-            return f"{n:.0f} {unit}" if unit in ("B", "KB") else f"{n:.1f} {unit}"
-        n /= 1024
-    return f"{n:.1f} TB"
-
-
 def _when(ts: float) -> str:
     d = datetime.fromtimestamp(ts)
     days = (datetime.now().date() - d.date()).days
@@ -86,17 +89,18 @@ def _when(ts: float) -> str:
 
 class FilesSkill(Skill):
     name = "files"
+    icon = "folder"
     description = "Open folders, find and open files, tidy Downloads."
     keywords = (r"\b(files?|folders?|downloads?|documents?|desktop|pictures?|photos?|videos?|pdfs?|resume|cv|"
                 r"screenshots?|recent|organi[sz]e|tidy|space|biggest|largest|delete|trash|recycle)\b")
     prompt_hint = "Files: find_files searches your folders by name; open_file opens the best match."
 
-    def __init__(self, ctx: Any, roots: list[Path] | None = None, opener: Callable[[str], Any] | None = None,
+    def __init__(self, ctx: Context, roots: list[Path] | None = None, opener: Callable[[str], Any] | None = None,
                  trash: Callable[[str], Any] | None = None):
         super().__init__(ctx)
         self._roots = roots
         self._open = opener or open_target
-        self._trash = trash or _default_trash
+        self._trash = trash or move_to_trash
 
     # ----- helpers -----
 
@@ -397,7 +401,3 @@ def _free_name(path: Path) -> Path:
 
 
 
-def _default_trash(path: str) -> None:
-    from send2trash import send2trash
-
-    send2trash(path)

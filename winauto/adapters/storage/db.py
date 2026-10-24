@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import sqlite3
 import threading
-from datetime import datetime
 from pathlib import Path
 from typing import Any, Iterable
 
@@ -104,10 +103,6 @@ MIGRATIONS: list[str] = [
     CREATE INDEX events_start ON events(start_at);
     """,
 ]
-
-
-def now_iso() -> str:
-    return datetime.now().replace(microsecond=0).isoformat(sep=" ")
 
 
 class Database:

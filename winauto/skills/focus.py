@@ -9,8 +9,9 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import Any, Callable
 
-from winauto.core.skill import QuickRule, Skill, ToolResult, ok, tool
 from winauto.adapters.winos import NotOnWindows
+from winauto.core.context import Context
+from winauto.core.skill import QuickRule, Skill, ToolResult, ok, tool
 
 log = logging.getLogger(__name__)
 
@@ -28,10 +29,11 @@ class FocusState:
 
 class FocusSkill(Skill):
     name = "focus"
+    icon = "target"
     description = "Focus sessions (Pomodoro) that minimise distracting apps."
     keywords = r"\b(focus|pomodoro|concentrate|deep work|distract|study session|work session)\b"
 
-    def __init__(self, ctx: Any, clock: Callable[[], datetime] = datetime.now, apps: Any = None):
+    def __init__(self, ctx: Context, clock: Callable[[], datetime] = datetime.now, apps: Any = None):
         super().__init__(ctx)
         self.clock = clock
         self._apps = apps
@@ -42,7 +44,7 @@ class FocusSkill(Skill):
         self._last_nag: dict[str, float] = {}
 
     def apps(self):
-        return self._apps or self.ctx.services.get("skills", {}).get("apps")
+        return self._apps or self.ctx.skill("apps")
 
     # ----- background loop -----
 

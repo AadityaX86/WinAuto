@@ -6,6 +6,7 @@ import logging
 from datetime import datetime
 from typing import Any, Callable
 
+from winauto.core.context import Context
 from winauto.core.skill import QuickRule, Skill, ToolResult, ok, tool
 
 log = logging.getLogger(__name__)
@@ -13,15 +14,16 @@ log = logging.getLogger(__name__)
 
 class BriefingSkill(Skill):
     name = "briefing"
+    icon = "sun"
     description = "Daily briefing."
     keywords = r"\b(briefing|brief me|good morning|my day|today look|morning)\b"
 
-    def __init__(self, ctx: Any, clock: Callable[[], datetime] = datetime.now):
+    def __init__(self, ctx: Context, clock: Callable[[], datetime] = datetime.now):
         super().__init__(ctx)
         self.clock = clock
 
     def _skill(self, name: str):
-        return self.ctx.services.get("skills", {}).get(name)
+        return self.ctx.skill(name)
 
     def _section(self, title: str, fn: Callable[[], Any]) -> str | None:
         try:

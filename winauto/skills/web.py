@@ -4,14 +4,31 @@ from __future__ import annotations
 
 import logging
 import re
+import time
 import urllib.parse
 from typing import Any, Callable
 
+from winauto.adapters.http import (
+    FetchError,
+    fetch,
+    fetch_json,
+    html_to_text,
+    strip_tags,
+)
+from winauto.adapters.winos.shell import open_url
+from winauto.core.context import Context
 from winauto.core.matching import normalize
 from winauto.core.quick import is_simple
-from winauto.core.skill import QuickRule, Skill, Suggestion, ToolResult, fail, ok, tool
-from winauto.adapters.http import FetchError, fetch, fetch_json, html_to_text, strip_tags
-from winauto.adapters.winos.shell import open_url
+from winauto.core.skill import (
+    QuickRule,
+    Skill,
+    Suggestion,
+    ToolResult,
+    Widget,
+    fail,
+    ok,
+    tool,
+)
 
 log = logging.getLogger(__name__)
 
@@ -110,6 +127,7 @@ def _unwrap_ddg(href: str) -> str:
 
 class WebSkill(Skill):
     name = "web"
+    icon = "globe"
     description = "Open websites, search the web, read pages, weather."
     keywords = r"\b(website|site|search|google|browser|url|link|youtube|weather|rain|news|web|online|look up)\b|\.\w{2,}\b"
     always = True
@@ -119,7 +137,7 @@ class WebSkill(Skill):
         "Use open_website only when the user wants a site opened in the browser."
     )
 
-    def __init__(self, ctx: Any, opener: Callable[[str], Any] | None = None,
+    def __init__(self, ctx: Context, opener: Callable[[str], Any] | None = None,
                  fetcher: Callable[..., tuple[str, str]] | None = None,
                  json_fetcher: Callable[..., Any] | None = None):
         super().__init__(ctx)
@@ -253,6 +271,24 @@ class WebSkill(Skill):
             return ok(format_weather(data, place), data={"source": "wttr.in"})
         except (KeyError, IndexError, TypeError, ValueError):
             return fail(f"I couldn't find weather for '{place}'.")
+
+    def widgets(self) -> list[Widget]:
+        """Current weather, refreshed at most once an hour."""
+        db = self.ctx.db
+        cached = db.get_value("home_weather")
+        fetched_at = float(db.get_value("home_weather_at") or 0)
+        if not cached or time.time() - fetched_at > 3600:
+            place = self.ctx.config.weather_location
+            try:
+                cur = self._fetch_json("https://wttr.in/" + urllib.parse.quote(place) + "?format=j1",
+                                       timeout=12)["current_condition"][0]
+                cached = f"{cur['temp_C']}° {cur['weatherDesc'][0]['value'].strip().capitalize()}"
+            except (FetchError, KeyError, IndexError, TypeError, ValueError):
+                log.debug("weather widget failed", exc_info=True)
+            else:
+                db.set_value("home_weather", cached)
+                db.set_value("home_weather_at", str(time.time()))
+        return [Widget("cloud", cached, order=40)] if cached else []
 
     # ----- launcher -----
 

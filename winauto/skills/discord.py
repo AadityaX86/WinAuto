@@ -11,20 +11,22 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from winauto.core.skill import QuickRule, Risk, Skill, ToolResult, fail, ok, tool
-from winauto.skills.contacts import ContactBook
 from winauto.adapters.winos import NotOnWindows
 from winauto.adapters.winos.discord import DiscordApp
+from winauto.core.context import Context
+from winauto.core.skill import QuickRule, Risk, Skill, ToolResult, fail, ok, tool
+from winauto.skills.shared.contacts import ContactBook
 
 log = logging.getLogger(__name__)
 
 class DiscordSkill(Skill):
     name = "discord"
+    icon = "message"
     description = "Discord direct messages."
     keywords = r"\b(discord|dm)\b"
     prompt_hint = "Discord: send_discord takes a contact name, a Discord username, or '#channel'. Casual tone."
 
-    def __init__(self, ctx: Any, backend: Any = None):
+    def __init__(self, ctx: Context, backend: Any = None):
         super().__init__(ctx)
         self.backend = backend or DiscordApp()
         self.book = ContactBook(ctx)

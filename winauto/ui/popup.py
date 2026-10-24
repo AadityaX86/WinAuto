@@ -1,450 +1,47 @@
-"""The popup: a launcher (search apps, settings, commands as you type) with an AI chat."""
+"""The popup window: search box, results, home, chat and writing tools, with keys and animation."""
 
 from __future__ import annotations
 
-from datetime import datetime
-from typing import Any
-
-from PySide6.QtCore import QEasingCurve, QEvent, QObject, QPoint, QPropertyAnimation, QRectF, QSize, Qt, QTimer, Signal
-from PySide6.QtGui import QColor, QCursor, QGuiApplication, QKeyEvent, QPainter, QPainterPath, QTextDocument
+from PySide6.QtCore import (
+    QEasingCurve,
+    QEvent,
+    QObject,
+    QPoint,
+    QPropertyAnimation,
+    QRectF,
+    Qt,
+    QTimer,
+    Signal,
+)
+from PySide6.QtGui import (
+    QColor,
+    QCursor,
+    QGuiApplication,
+    QKeyEvent,
+    QPainter,
+    QPainterPath,
+)
 from PySide6.QtWidgets import (
     QFrame,
-    QGridLayout,
     QHBoxLayout,
     QLabel,
     QLineEdit,
-    QPlainTextEdit,
-    QPushButton,
-    QScrollArea,
-    QSizePolicy,
     QStackedWidget,
     QVBoxLayout,
     QWidget,
 )
 
-from winauto.core.agent import AgentReply, ConfirmRequest, Decision
+from winauto.core.agent import AgentReply, ConfirmRequest
 from winauto.core.skill import Suggestion
-from winauto.ui.icons import icon, pixmap
+from winauto.ui.cards import ConfirmCard
+from winauto.ui.chat import ChatView
+from winauto.ui.home import HomeView
+from winauto.ui.icons import pixmap
+from winauto.ui.parts import HEIGHT, SHADOW, WIDTH, clear_layout, divider
+from winauto.ui.textmode import TextModeView
 from winauto.ui.theme import Palette, base_font
 from winauto.ui.widgets import ResultList, Spinner, icon_button, kbd
 
-WIDTH = 780
-HEIGHT = 560
-SHADOW = 18
-MULTILINE_FIELDS = {"body", "message", "text", "content", "note", "command"}
-
-
-# ---------------- helpers ----------------
-
-def _hard_breaks(text: str) -> str:
-    """Keep single line breaks from the model (Markdown would merge the lines)."""
-    out, in_code = [], False
-    for line in text.split("\n"):
-        if line.strip().startswith("```"):
-            in_code = not in_code
-        out.append(line if in_code or not line.strip() else line + "  ")
-    return "\n".join(out)
-
-
-def _fit_label(label: QLabel, max_width: int) -> None:
-    """Word-wrapped labels otherwise wrap far too early; size them to their text."""
-    label.ensurePolished()
-    doc = QTextDocument()
-    doc.setDefaultFont(label.font())
-    if label.textFormat() == Qt.TextFormat.MarkdownText:
-        doc.setMarkdown(label.text())
-    else:
-        doc.setPlainText(label.text())
-    label.setMinimumWidth(min(int(doc.idealWidth()) + 32, max_width))
-
-
-def _label(text: str, markdown: bool = False, object_name: str = "") -> QLabel:
-    label = QLabel()
-    label.setWordWrap(True)
-    label.setTextFormat(Qt.TextFormat.MarkdownText if markdown else Qt.TextFormat.PlainText)
-    label.setText(text)
-    label.setTextInteractionFlags(
-        Qt.TextInteractionFlag.TextSelectableByMouse | Qt.TextInteractionFlag.LinksAccessibleByMouse
-    )
-    label.setOpenExternalLinks(True)
-    if object_name:
-        label.setObjectName(object_name)
-    return label
-
-
-def _dispose(widget: QWidget | None) -> None:
-    """Hide now, delete later: otherwise the old widget is still drawn until Qt gets to it."""
-    if widget is not None:
-        widget.hide()
-        widget.deleteLater()
-
-
-def _clear_layout(layout) -> None:
-    while layout.count():
-        item = layout.takeAt(0)
-        if item.widget():
-            _dispose(item.widget())
-
-
-def _divider() -> QFrame:
-    line = QFrame()
-    line.setObjectName("Divider")
-    line.setFrameShape(QFrame.Shape.NoFrame)
-    return line
-
-
-# ---------------- approval card ----------------
-
-class ConfirmCard(QFrame):
-    """'Send email?' card with editable fields and Approve / Cancel."""
-
-    decided = Signal(object)  # Decision
-
-    def __init__(self, request: ConfirmRequest, palette: Palette, parent: QWidget | None = None):
-        super().__init__(parent)
-        self.setObjectName("Card")
-        self.request = request
-        self._fields: dict[str, Any] = {}
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(16, 14, 16, 14)
-        layout.setSpacing(8)
-        head = QHBoxLayout()
-        badge = QLabel()
-        badge.setPixmap(pixmap("alert" if request.confirm_label.lower() in ("delete", "force close", "yes, do it", "empty it")
-                               else "check-circle", palette.accent, 18))
-        head.addWidget(badge)
-        head.addWidget(_label(request.title, object_name="CardTitle"), 1)
-        layout.addLayout(head)
-        if request.preview:
-            layout.addWidget(_label(request.preview, object_name="Muted"))
-        for name in request.editable:
-            value = str(request.args.get(name, ""))
-            layout.addWidget(_label(name.replace("_", " ").capitalize(), object_name="Muted"))
-            if name in MULTILINE_FIELDS or "\n" in value or len(value) > 80:
-                edit = QPlainTextEdit(value)
-                edit.setMinimumHeight(120 if name != "command" else 60)
-                edit.setTabChangesFocus(True)
-            else:
-                edit = QLineEdit(value)
-            self._fields[name] = edit
-            layout.addWidget(edit)
-        row = QHBoxLayout()
-        self.result_label = _label("", object_name="Muted")
-        row.addWidget(self.result_label, 1)
-        self.cancel_btn = QPushButton("Cancel")
-        self.ok_btn = QPushButton(request.confirm_label)
-        self.ok_btn.setObjectName("Primary")
-        self.ok_btn.setDefault(True)
-        self.ok_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.cancel_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        row.addWidget(self.cancel_btn)
-        row.addWidget(self.ok_btn)
-        layout.addLayout(row)
-        self.ok_btn.clicked.connect(self._approve)
-        self.cancel_btn.clicked.connect(self._cancel)
-        self._done = False
-
-    def focus(self) -> None:
-        first = next(iter(self._fields.values()), None)
-        (first or self.ok_btn).setFocus()
-
-    def _values(self) -> dict[str, str]:
-        return {n: (e.toPlainText() if isinstance(e, QPlainTextEdit) else e.text()) for n, e in self._fields.items()}
-
-    def _finish(self, decision: Decision, note: str) -> None:
-        if self._done:
-            return
-        self._done = True
-        for w in [self.ok_btn, self.cancel_btn, *self._fields.values()]:
-            w.setEnabled(False)
-        self.result_label.setText(note)
-        self.decided.emit(decision)
-
-    def _approve(self) -> None:
-        values = self._values()
-        changed = {k: v for k, v in values.items() if v != str(self.request.args.get(k, ""))}
-        self._finish(Decision(True, changed or None), "✓ " + self.request.confirm_label)
-
-    def _cancel(self) -> None:
-        self._finish(Decision(False), "Cancelled")
-
-    def expire(self) -> None:
-        self._finish(Decision(False), "Cancelled")
-
-
-# ---------------- chat ----------------
-
-class TypingDots(QLabel):
-    def __init__(self, palette: Palette):
-        super().__init__()
-        self.p = palette
-        self.setObjectName("BotBubble")
-        self._n = 0
-        self._timer = QTimer(self)
-        self._timer.timeout.connect(self._tick)
-        self._timer.start(320)
-        self._tick()
-
-    def _tick(self) -> None:
-        self._n = (self._n + 1) % 4
-        dots = ["<span style='color:%s'>●</span>" % (self.p.accent if i < self._n else self.p.faint) for i in range(3)]
-        self.setText(" ".join(dots))
-
-
-class ChatView(QScrollArea):
-    action_requested = Signal(object)  # {"label","tool","args"}
-
-    def __init__(self, palette: Palette):
-        super().__init__()
-        self.p = palette
-        self.setWidgetResizable(True)
-        self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        self.conversation = QWidget()
-        self.conversation.setObjectName("Conversation")
-        self.layout_ = QVBoxLayout(self.conversation)
-        self.layout_.setContentsMargins(18, 14, 18, 14)
-        self.layout_.setSpacing(10)
-        self.layout_.addStretch(1)
-        self.setWidget(self.conversation)
-        self._typing: QWidget | None = None
-        self._stream_label: QLabel | None = None
-        self._stream_row: QWidget | None = None
-        self._stream_text = ""
-
-    @property
-    def max_bubble(self) -> int:
-        return int((WIDTH - 2 * SHADOW) * 0.78)
-
-    def _row(self, widget: QWidget, align_right: bool = False, avatar: bool = False) -> QWidget:
-        row = QWidget()
-        h = QHBoxLayout(row)
-        h.setContentsMargins(0, 0, 0, 0)
-        h.setSpacing(8)
-        if align_right:
-            h.addStretch(1)
-        if avatar:
-            av = QLabel()
-            av.setFixedSize(26, 26)
-            av.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            av.setStyleSheet(f"background: qlineargradient(x1:0,y1:0,x2:1,y2:1, stop:0 {self.p.accent}, stop:1 {self.p.accent_2});"
-                             "border-radius: 13px;")
-            av.setPixmap(pixmap("sparkles", "#ffffff", 14))
-            h.addWidget(av, 0, Qt.AlignmentFlag.AlignTop)
-        h.addWidget(widget)
-        if not align_right:
-            h.addStretch(1)
-        widget.setMaximumWidth(self.max_bubble)
-        widget.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Minimum)
-        if isinstance(widget, TypingDots):
-            widget.setFixedWidth(64)
-        elif isinstance(widget, QLabel):
-            _fit_label(widget, self.max_bubble)
-        self.layout_.addWidget(row)
-        QTimer.singleShot(30, self.scroll_to_end)
-        return row
-
-    def scroll_to_end(self) -> None:
-        bar = self.verticalScrollBar()
-        bar.setValue(bar.maximum())
-
-    def add_user(self, text: str) -> None:
-        self._row(_label(text, object_name="UserBubble"), align_right=True)
-
-    def add_bot(self, text: str, error: bool = False) -> QLabel:
-        label = _label(_hard_breaks(text), markdown=True, object_name="ErrorBubble" if error else "BotBubble")
-        self._row(label, avatar=True)
-        return label
-
-    def add_reply(self, reply: AgentReply) -> None:
-        self.end_typing()
-        self.end_stream()
-        if reply.steps:
-            marks = []
-            for s in reply.steps:
-                mark = "✓" if s.result.ok else ("⊘" if s.result.cancelled else "✗")
-                marks.append(f"{mark} {s.tool.replace('_', ' ')}")
-            steps = _label("   ".join(marks), object_name="Steps")
-            row = self._row(steps)
-            row.layout().setContentsMargins(34, 0, 0, 0)
-        if reply.text:
-            self.add_bot(reply.text, error=bool(reply.error))
-        actions = []
-        for s in reply.steps:
-            data = s.result.data if isinstance(s.result.data, dict) else {}
-            actions += data.get("actions", []) if s.result.ok else []
-        if actions:
-            self.add_actions(actions)
-
-    def add_actions(self, actions: list[dict]) -> None:
-        row = QWidget()
-        h = QHBoxLayout(row)
-        h.setContentsMargins(34, 0, 0, 0)
-        h.setSpacing(8)
-        for a in actions:
-            btn = QPushButton(a.get("label", "Do it"))
-            btn.setObjectName("Chip")
-            btn.setIcon(icon(a.get("icon", "chevron-right"), self.p.text, 14))
-            btn.setCursor(Qt.CursorShape.PointingHandCursor)
-            btn.clicked.connect(lambda _=False, act=a: self.action_requested.emit(act))
-            h.addWidget(btn)
-        h.addStretch(1)
-        self.layout_.addWidget(row)
-        QTimer.singleShot(30, self.scroll_to_end)
-
-    def add_card(self, request: ConfirmRequest) -> ConfirmCard:
-        self.end_typing()
-        card = ConfirmCard(request, self.p)
-        row = self._row(card)
-        row.layout().setContentsMargins(34, 0, 0, 0)
-        card.setMinimumWidth(min(560, self.max_bubble))
-        card.setMaximumWidth(WIDTH - 2 * SHADOW - 80)
-        QTimer.singleShot(50, card.focus)
-        return card
-
-    def start_typing(self) -> None:
-        if self._typing is None and self._stream_label is None:
-            dots = TypingDots(self.p)
-            self._typing = self._row(dots, avatar=True)
-
-    def end_typing(self) -> None:
-        if self._typing is not None:
-            self.layout_.removeWidget(self._typing)
-            _dispose(self._typing)
-            self._typing = None
-
-    def stream_token(self, delta: str) -> None:
-        if delta == "":
-            # A new answer starts: drop the previous partial one.
-            self.end_stream()
-            return
-        self.end_typing()
-        if self._stream_label is None:
-            self._stream_text = ""
-            self._stream_label = _label("", markdown=True, object_name="BotBubble")
-            self._stream_label.setMinimumWidth(min(240, self.max_bubble))
-            self._stream_row = self._row(self._stream_label, avatar=True)
-        self._stream_text += delta
-        self._stream_label.setText(_hard_breaks(self._stream_text))
-        _fit_label(self._stream_label, self.max_bubble)
-        QTimer.singleShot(10, self.scroll_to_end)
-
-    def end_stream(self) -> None:
-        if self._stream_row is not None:
-            self.layout_.removeWidget(self._stream_row)
-            _dispose(self._stream_row)
-        self._stream_row = None
-        self._stream_label = None
-        self._stream_text = ""
-
-    def clear(self) -> None:
-        self.end_typing()
-        self.end_stream()
-        while self.layout_.count() > 1:
-            item = self.layout_.takeAt(1)
-            if item.widget():
-                _dispose(item.widget())
-
-    def is_empty(self) -> bool:
-        return self.layout_.count() <= 1
-
-
-# ---------------- home ----------------
-
-class HomeView(QWidget):
-    def __init__(self, palette: Palette):
-        super().__init__()
-        self.p = palette
-        v = QVBoxLayout(self)
-        v.setContentsMargins(0, 14, 0, 6)
-        v.setSpacing(6)
-        head = QVBoxLayout()
-        head.setContentsMargins(22, 0, 22, 0)
-        head.setSpacing(2)
-        self.greeting = QLabel("")
-        self.greeting.setObjectName("Greeting")
-        self.sub = QLabel("")
-        self.sub.setObjectName("SubGreeting")
-        head.addWidget(self.greeting)
-        head.addWidget(self.sub)
-        v.addLayout(head)
-        self.widgets_row = QHBoxLayout()
-        self.widgets_row.setContentsMargins(22, 8, 22, 2)
-        self.widgets_row.setSpacing(8)
-        v.addLayout(self.widgets_row)
-        self.list = ResultList(palette)
-        v.addWidget(self.list, 1)
-        self.refresh_greeting("")
-
-    def refresh_greeting(self, name: str) -> None:
-        now = datetime.now()
-        part = "Good morning" if 5 <= now.hour < 12 else "Good afternoon" if now.hour < 17 else "Good evening"
-        self.greeting.setText(f"{part}{', ' + name.split()[0] if name else ''}")
-        self.sub.setText(now.strftime("%A, %d %B"))
-
-    def set_widgets(self, items: list[tuple[str, str]]) -> None:
-        _clear_layout(self.widgets_row)
-        for icon_name, text in items:
-            box = QFrame()
-            box.setObjectName("Widget")
-            h = QHBoxLayout(box)
-            h.setContentsMargins(10, 7, 12, 7)
-            h.setSpacing(8)
-            ic = QLabel()
-            ic.setPixmap(pixmap(icon_name, self.p.accent, 16))
-            h.addWidget(ic)
-            lab = QLabel(text)
-            lab.setObjectName("WidgetText")
-            h.addWidget(lab)
-            self.widgets_row.addWidget(box)
-        self.widgets_row.addStretch(1)
-
-    def set_lists(self, suggestions: list[Suggestion], recent: list[Suggestion]) -> None:
-        self.list.set_items([("Suggestions", suggestions), ("Recent", recent)])
-
-
-# ---------------- writing tools ----------------
-
-class TextModeView(QWidget):
-    action_chosen = Signal(str)
-
-    def __init__(self, palette: Palette):
-        super().__init__()
-        self.p = palette
-        v = QVBoxLayout(self)
-        v.setContentsMargins(22, 16, 22, 12)
-        v.setSpacing(10)
-        title = QLabel("Writing tools")
-        title.setObjectName("Greeting")
-        v.addWidget(title)
-        self.quote = _label("", object_name="Quote")
-        self.quote.setMaximumHeight(110)
-        v.addWidget(self.quote)
-        sec = QLabel("What should I do with it?")
-        sec.setObjectName("SectionTitle")
-        v.addWidget(sec)
-        self.grid = QGridLayout()
-        self.grid.setSpacing(8)
-        v.addLayout(self.grid)
-        hint = QLabel("…or type your own instruction above and press Enter.")
-        hint.setObjectName("Muted")
-        v.addWidget(hint)
-        v.addStretch(1)
-
-    def set_content(self, text: str, actions: list[tuple[str, str, str]]) -> None:
-        one = " ".join(text.split())
-        self.quote.setText(one[:400] + ("…" if len(one) > 400 else ""))
-        _clear_layout(self.grid)
-        for i, (key, label, icon_name) in enumerate(actions):
-            btn = QPushButton(label)
-            btn.setObjectName("Chip")
-            btn.setIcon(icon(icon_name, self.p.text, 15))
-            btn.setIconSize(QSize(15, 15))
-            btn.setCursor(Qt.CursorShape.PointingHandCursor)
-            btn.clicked.connect(lambda _=False, k=key: self.action_chosen.emit(k))
-            self.grid.addWidget(btn, i // 3, i % 3)
-
-
-# ---------------- window ----------------
 
 class _KeyFilter(QObject):
     def __init__(self, popup: "PopupWindow"):
@@ -522,7 +119,7 @@ class PopupWindow(QWidget):
         self.settings_btn.clicked.connect(self.settings_requested.emit)
         h.addWidget(self.settings_btn)
         v.addWidget(self.header)
-        v.addWidget(_divider())
+        v.addWidget(divider())
 
         # Pages
         self.stack = QStackedWidget()
@@ -542,7 +139,7 @@ class PopupWindow(QWidget):
         for page in (self.home, results_page, self.chat, self.text_view):
             self.stack.addWidget(page)
         v.addWidget(self.stack, 1)
-        v.addWidget(_divider())
+        v.addWidget(divider())
 
         # Footer
         foot = QWidget()
@@ -602,7 +199,7 @@ class PopupWindow(QWidget):
             "chat": [("↵", "Send"), ("Esc", "Hide")],
             "text": [("↵", "Apply"), ("Esc", "Back")],
         }[mode]
-        _clear_layout(self.hints)
+        clear_layout(self.hints)
         for key, what in hints:
             self.hints.addWidget(kbd(key))
             lab = QLabel(what)

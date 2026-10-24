@@ -8,8 +8,9 @@ import threading
 from collections import deque
 from typing import Any
 
-from winauto.core.skill import QuickRule, Skill, Suggestion, ToolResult, fail, ok, tool
 from winauto.adapters.winos import NotOnWindows
+from winauto.core.context import Context
+from winauto.core.skill import QuickRule, Skill, Suggestion, ToolResult, fail, ok, tool
 
 log = logging.getLogger(__name__)
 MAX_ITEMS = 25
@@ -18,6 +19,7 @@ MAX_CHARS = 8000
 
 class ClipboardSkill(Skill):
     name = "clipboard"
+    icon = "clipboard"
     description = "Read and set the clipboard; clipboard history."
     keywords = (r"\b(clipboard|copied|copy|paste|this text|selected|summari[sz]e|translate|rewrite|rephrase|proofread|"
                 r"fix (?:the )?grammar|explain this|shorten|make (?:it|this) (?:shorter|formal|polite))\b")
@@ -27,7 +29,7 @@ class ClipboardSkill(Skill):
         "they can paste it."
     )
 
-    def __init__(self, ctx: Any, backend: Any = None, watch: bool = True):
+    def __init__(self, ctx: Context, backend: Any = None, watch: bool = True):
         super().__init__(ctx)
         if backend is None:
             from winauto.adapters.winos.clipboard import WindowsClipboard

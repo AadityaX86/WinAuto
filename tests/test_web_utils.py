@@ -2,12 +2,17 @@ from __future__ import annotations
 
 import pytest
 
+from winauto.adapters.http import FetchError, html_to_text
 from winauto.core.quick import QuickMatcher
 from winauto.core.registry import Registry
-from winauto.adapters.http import FetchError, html_to_text
 from winauto.skills.apps import AppsSkill
 from winauto.skills.notes import NotesSkill
-from winauto.skills.utils import UtilsSkill, calculate_expression, convert, format_number
+from winauto.skills.utils import (
+    UtilsSkill,
+    calculate_expression,
+    convert,
+    format_number,
+)
 from winauto.skills.web import WebSkill, looks_like_url, parse_ddg
 
 DDG_HTML = """

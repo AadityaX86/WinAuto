@@ -25,38 +25,28 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from winauto import __version__
 from winauto.config import Config
-from winauto.adapters.llm import OllamaClient, make_client
-from winauto.adapters.secrets import get_secret, set_secret
+from winauto.services.settings import SettingsService
 from winauto.ui.async_util import run_async
 from winauto.ui.icons import icon
 from winauto.ui.theme import DARK, LIGHT, Palette, is_dark
 from winauto.ui.widgets import ToggleSwitch
-from winauto.adapters.winos.hotkey import parse_hotkey
 
 SUGGESTED_MODELS = ["qwen3:8b", "qwen3:14b", "qwen3:32b", "qwen2.5:7b", "llama3.1:8b", "mistral-nemo:12b"]
 VISION_MODELS = ["qwen2.5vl:7b", "gemma3:4b", "gemma3:12b", "llama3.2-vision:11b", "llava:7b"]
 BACKENDS = [("Ollama", "ollama"), ("OpenAI-compatible (LM Studio, llama.cpp…)", "openai")]
 DEFAULT_URLS = {"ollama": "http://localhost:11434", "openai": "http://localhost:1234/v1"}
-GMAIL_SECRET = "gmail-app-password"  # same name the Gmail skill reads
 THEMES = [("Match Windows", "system"), ("Dark", "dark"), ("Light", "light")]
-SKILL_ICONS = {
-    "apps": "app", "notes": "note", "web": "globe", "utils": "calculator", "system": "settings", "contacts": "user",
-    "reminders": "bell", "email": "mail", "whatsapp": "message", "discord": "message", "files": "folder",
-    "clipboard": "clipboard", "media": "music", "windows": "layout", "routines": "zap", "shortcuts": "link",
-    "tools": "tool", "memory": "brain", "textactions": "text", "vision": "eye", "info": "book",
-    "calendar": "calendar", "briefing": "sun", "focus": "target", "voice": "volume",
-}
 
 
 class SettingsDialog(QDialog):
     saved = Signal(object)  # Config
 
     def __init__(self, config: Config, parent: QWidget | None = None,
-                 skills: list[tuple[str, str]] | None = None, extra_sections: list[QWidget] | None = None,
-                 palette: Palette | None = None):
+                 skills: list[tuple[str, ...]] | None = None, extra_sections: list[QWidget] | None = None,
+                 palette: Palette | None = None, service: SettingsService | None = None):
         super().__init__(parent)
+        self.service = service or SettingsService()
         self.setWindowTitle("WinAuto settings")
         self.resize(900, 640)
         self.config = copy.deepcopy(config)
@@ -286,7 +276,7 @@ class SettingsDialog(QDialog):
         self._row(c, "Gmail address", "", self.email_address)
         self.email_password = QLineEdit()
         self.email_password.setEchoMode(QLineEdit.EchoMode.Password)
-        self._had_password = bool(get_secret(GMAIL_SECRET))
+        self._had_password = self.service.gmail_password_saved()
         self.email_password.setPlaceholderText("saved (type to change)" if self._had_password else "16-letter app password")
         self._row(c, "App password",
                   'Create one at <a href="https://myaccount.google.com/apppasswords">myaccount.google.com/apppasswords</a> '
@@ -334,16 +324,17 @@ class SettingsDialog(QDialog):
         self._row(c, "Apps to keep away", "Comma separated app names.", self.focus_apps, stretch_control=True)
         v.addStretch(1)
 
-    def _build_skills(self, skills: list[tuple[str, str]]) -> None:
+    def _build_skills(self, skills: list[tuple[str, ...]]) -> None:
+        """skills: (name, description) or (name, description, icon) for each loaded skill."""
         v = self._page("Skills", "puzzle", "Turn off abilities you don't use. Changes apply after restarting WinAuto.")
         c = self._card(v)
         disabled = set(self.config.disabled_skills)
-        for name, description in sorted(skills):
+        for name, description, *extra in sorted(skills):
             toggle = self._toggle(name not in disabled)
             self._skill_toggles[name] = toggle
             row = self._row(c, name.replace("textactions", "writing tools").capitalize(), description, toggle)
             ic = QLabel()
-            ic.setPixmap(icon(SKILL_ICONS.get(name, "puzzle"), self.p.accent, 18).pixmap(18, 18))
+            ic.setPixmap(icon(extra[0] if extra else "puzzle", self.p.accent, 18).pixmap(18, 18))
             row.layout().insertWidget(0, ic)
         if not skills:
             self._row(c, "No skills loaded", "", None)
@@ -352,15 +343,13 @@ class SettingsDialog(QDialog):
     def _build_about(self) -> None:
         v = self._page("About", "info")
         c = self._card(v)
-        self._row(c, f"WinAuto {__version__}", "A private assistant for Windows that runs on your own AI model.", None)
+        self._row(c, f"WinAuto {self.service.version}", "A private assistant for Windows that runs on your own AI model.", None)
         gh = QPushButton("Open on GitHub")
         gh.clicked.connect(lambda: QDesktopServices.openUrl(QUrl("https://github.com/AadityaX86/WinAuto")))
         self._row(c, "Source code", "Updates, issues and the README.", gh)
-        from winauto.paths import data_dir
-
         data_btn = QPushButton("Open data folder")
-        data_btn.clicked.connect(lambda: QDesktopServices.openUrl(QUrl.fromLocalFile(str(data_dir()))))
-        self._row(c, "Your data", str(data_dir()), data_btn)
+        data_btn.clicked.connect(lambda: QDesktopServices.openUrl(QUrl.fromLocalFile(str(self.service.data_dir))))
+        self._row(c, "Your data", str(self.service.data_dir), data_btn)
         c = self._card(v, "Tips")
         for title, text in (
             ("Prefixes", "<b>&gt;</b> runs a terminal command · <b>:</b> finds emoji · <b>/</b> finds files · <b>clip</b> shows clipboard history"),
@@ -410,7 +399,6 @@ class SettingsDialog(QDialog):
         if cfg.llm.backend != "ollama":
             self.test_result.setText("Model list is only available for Ollama.")
             return
-        client = OllamaClient(base_url=cfg.llm.base_url)
         self.test_result.setText("Looking…")
 
         def done(models, error):
@@ -426,10 +414,10 @@ class SettingsDialog(QDialog):
             self.vision.setCurrentText(vision)
             self.test_result.setText(f"Found {len(models)} model(s).")
 
-        run_async(client.list_models, done)
+        run_async(lambda: self.service.list_models(cfg.llm), done)
 
     def _test(self) -> None:
-        client = make_client(self._collect().llm)
+        llm = self._collect().llm
         self.test_result.setText("Testing…")
 
         def done(result, error):
@@ -439,14 +427,12 @@ class SettingsDialog(QDialog):
             ok, msg = result
             self.test_result.setText(("✓ " if ok else "✗ ") + msg)
 
-        run_async(client.check, done)
+        run_async(lambda: self.service.check_model(llm), done)
 
     def _test_mail(self) -> None:
-        from winauto.skills.gmail import GmailBackend
-
         address = self.email_address.text().strip()
-        password = self.email_password.text().strip() or get_secret(GMAIL_SECRET) or ""
-        if not address or not password:
+        password = self.email_password.text().strip()
+        if not address or not (password or self._had_password):
             self.mail_result.setText("Enter your Gmail address and app password first.")
             return
         self.mail_result.setText("Signing in…")
@@ -454,24 +440,23 @@ class SettingsDialog(QDialog):
         def done(result: Any, error: Any) -> None:
             self.mail_result.setText(f"✓ {result}" if not error else f"✗ {error}")
 
-        run_async(lambda: GmailBackend(address, password).check(), done)
+        run_async(lambda: self.service.test_gmail(address, password), done)
 
     def _save(self) -> None:
         cfg = self._collect()
         for label, combo in (("Open WinAuto", cfg.hotkey), ("Writing tools", cfg.text_hotkey)):
             if not combo:
                 continue
-            try:
-                parse_hotkey(combo)
-            except ValueError as exc:
-                self.error.setText(f"{label}: {exc}")
+            problem = self.service.hotkey_error(combo)
+            if problem:
+                self.error.setText(f"{label}: {problem}")
                 self.nav.setCurrentRow(0)
                 return
         if cfg.text_hotkey and cfg.text_hotkey == cfg.hotkey:
             self.error.setText("The two shortcuts must be different.")
             return
         new_password = self.email_password.text().strip()
-        if new_password and not set_secret(GMAIL_SECRET, new_password.replace(" ", "")):
+        if new_password and not self.service.save_gmail_password(new_password):
             self.error.setText("Couldn't save the app password in Windows Credential Manager.")
             return
         self.saved.emit(cfg)

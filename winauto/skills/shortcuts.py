@@ -8,11 +8,21 @@ import urllib.parse
 from datetime import datetime
 from typing import Any, Callable
 
-from winauto.core.matching import normalize, rank
-from winauto.core.skill import QuickRule, Risk, Skill, Suggestion, ToolResult, fail, ok, tool
-from winauto.adapters.storage.db import now_iso
 from winauto.adapters.winos import NotOnWindows
 from winauto.adapters.winos.shell import open_url
+from winauto.core.context import Context
+from winauto.core.matching import normalize, rank
+from winauto.core.skill import (
+    QuickRule,
+    Risk,
+    Skill,
+    Suggestion,
+    ToolResult,
+    fail,
+    ok,
+    tool,
+)
+from winauto.core.timeparse import now_iso
 
 
 def fill_placeholders(text: str, clipboard: Callable[[], str | None] | None = None) -> str:
@@ -29,6 +39,7 @@ def fill_placeholders(text: str, clipboard: Callable[[], str | None] | None = No
 
 class ShortcutsSkill(Skill):
     name = "shortcuts"
+    icon = "link"
     description = "Quick links and text snippets."
     keywords = r"\b(quick ?links?|bookmarks?|snippets?|paste my|shortcut)\b"
     prompt_hint = (
@@ -36,7 +47,7 @@ class ShortcutsSkill(Skill):
         "the user pastes with paste_snippet. Snippets may use {date}, {time}, {clipboard}."
     )
 
-    def __init__(self, ctx: Any, opener: Callable[[str], Any] | None = None, clipboard: Any = None,
+    def __init__(self, ctx: Context, opener: Callable[[str], Any] | None = None, clipboard: Any = None,
                  paste: Callable[[], None] | None = None):
         super().__init__(ctx)
         self._open = opener or open_url
@@ -135,12 +146,10 @@ class ShortcutsSkill(Skill):
         if self._paste is not None:
             self._paste()
             return True
-        hwnd = self.ctx.services.get("last_window")
-        hide = self.ctx.services.get("hide_popup")
+        hwnd = self.ctx.host.last_window
         if not hwnd:
             return False
-        if callable(hide):
-            hide()
+        self.ctx.host.hide()
         from winauto.adapters.winos.apps import focus_window
         from winauto.adapters.winos.keyboard import press
 

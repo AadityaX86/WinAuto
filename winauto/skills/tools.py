@@ -7,16 +7,27 @@ import logging
 import os
 import re
 import secrets
-import socket
 import string
 import sys
 import time
 from pathlib import Path
 from typing import Any, Callable
 
-from winauto.core.skill import QuickRule, Risk, Skill, Suggestion, ToolResult, fail, ok, tool
+from winauto.adapters import sysinfo
 from winauto.adapters.http import FetchError, fetch
 from winauto.adapters.winos import NotOnWindows, run_hidden
+from winauto.core.context import Context
+from winauto.core.skill import (
+    QuickRule,
+    Risk,
+    Skill,
+    Suggestion,
+    ToolResult,
+    fail,
+    ok,
+    tool,
+)
+from winauto.skills.shared.format import human_size
 
 log = logging.getLogger(__name__)
 
@@ -123,10 +134,11 @@ def make_password(length: int = 16, symbols: bool = True) -> str:
 
 class ToolsSkill(Skill):
     name = "tools"
+    icon = "tool"
     description = "Passwords, emoji, colours, network info, terminal commands, temp cleanup."
     keywords = r"\b(password|emoji|colou?r|hex|rgb|ip address|my ip|network|wifi name|command|terminal|cmd|powershell|temp files|clean ?up)\b|^>"
 
-    def __init__(self, ctx: Any, clipboard: Any = None, fetcher: Callable[..., tuple[str, str]] | None = None):
+    def __init__(self, ctx: Context, clipboard: Any = None, fetcher: Callable[..., tuple[str, str]] | None = None):
         super().__init__(ctx)
         self._clipboard = clipboard
         self._fetch = fetcher or fetch
@@ -172,9 +184,7 @@ class ToolsSkill(Skill):
     @tool("Pick the colour under the mouse pointer after a short delay, and copy its hex code.",
           params={"delay_seconds": "Seconds to wait so you can point at the colour (default 3)"})
     def pick_color(self, delay_seconds: int = 3) -> ToolResult:
-        hide = self.ctx.services.get("hide_popup")
-        if callable(hide):
-            hide()
+        self.ctx.host.hide()
         time.sleep(max(0, min(delay_seconds, 10)))
         try:
             from winauto.adapters.winos.screen import color_under_cursor
@@ -189,28 +199,18 @@ class ToolsSkill(Skill):
 
     @tool("Show this PC's network details: local IP, public IP, Wi-Fi network name.")
     def network_info(self) -> ToolResult:
-        lines = []
-        try:
-            with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
-                s.connect(("192.0.2.1", 80))  # no packets are sent for UDP connect
-                lines.append(f"Local IP: {s.getsockname()[0]}")
-        except OSError:
-            lines.append("Local IP: not connected")
+        ip = sysinfo.local_ip()
+        lines = [f"Local IP: {ip}" if ip else "Local IP: not connected"]
         try:
             public, _ = self._fetch("https://api.ipify.org", timeout=6)
             lines.append(f"Public IP: {public.strip()}")
         except FetchError:
             lines.append("Public IP: couldn't check (offline?)")
-        if sys.platform == "win32":
-            try:
-                out = run_hidden(["netsh", "wlan", "show", "interfaces"], timeout=10).stdout
-                ssid = re.search(r"^\s*SSID\s*:\s*(.+)$", out, re.M)
-                signal = re.search(r"^\s*Signal\s*:\s*(.+)$", out, re.M)
-                if ssid:
-                    lines.append(f"Wi-Fi: {ssid.group(1).strip()}" + (f" ({signal.group(1).strip()} signal)" if signal else ""))
-            except (OSError, ValueError):
-                pass
-        lines.append(f"PC name: {socket.gethostname()}")
+        wifi = sysinfo.wifi_network()
+        if wifi:
+            name, signal = wifi
+            lines.append(f"Wi-Fi: {name}" + (f" ({signal} signal)" if signal else ""))
+        lines.append(f"PC name: {sysinfo.hostname()}")
         return ok("\n".join(lines))
 
     @tool(
@@ -264,16 +264,12 @@ class ToolsSkill(Skill):
                 removed += 1
             except OSError:
                 continue  # in use
-        from winauto.skills.files import human_size
-
         return ok(f"Removed {removed} temporary file(s), freeing {human_size(freed)}.")
 
     def preview(self, tool_name: str, args: dict[str, Any]) -> str | None:
         if tool_name == "run_command":
             return "Run this command? Commands can change your PC, so check it first."
         if tool_name == "clean_temp_files":
-            from winauto.skills.files import human_size
-
             files = self._temp_candidates()
             total = sum(p.stat().st_size for p in files if p.exists())
             return f"Delete {len(files)} temporary file(s) ({human_size(total)}) older than a day? Files in use are skipped."

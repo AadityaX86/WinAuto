@@ -9,9 +9,10 @@ import time
 from pathlib import Path
 from typing import Any, Callable, Literal
 
-from winauto.core.skill import QuickRule, Skill, ToolResult, fail, ok, tool
 from winauto.adapters.winos import NotOnWindows
 from winauto.adapters.winos.screen import capture
+from winauto.core.context import Context
+from winauto.core.skill import QuickRule, Skill, ToolResult, fail, ok, tool
 
 log = logging.getLogger(__name__)
 MAX_SIDE = 1600
@@ -33,22 +34,23 @@ def encode_image(image: Any) -> str:
 
 class VisionSkill(Skill):
     name = "vision"
+    icon = "eye"
     description = "Answer questions about the screen or an image (local vision model)."
     keywords = (r"\b(screen|on my screen|see|look at|this error|this window|screenshot|image|picture|photo|"
                 r"read the text|what am i looking at)\b")
     prompt_hint = "Vision: for questions about what's on the user's screen, call ask_about_screen."
 
-    def __init__(self, ctx: Any, grabber: Callable[[int | None], Any] | None = None):
+    def __init__(self, ctx: Context, grabber: Callable[[int | None], Any] | None = None):
         super().__init__(ctx)
         self._grab = grabber or capture
 
     def _ask(self, question: str, image_b64: str) -> ToolResult:
-        complete = self.ctx.services.get("complete")
-        if not callable(complete):
+        assistant = self.ctx.assistant
+        if assistant is None:
             return fail("The AI model isn't available.")
         model = getattr(self.ctx.config.llm, "vision_model", "") or None
         try:
-            answer = complete(SYSTEM, question, images=[image_b64], model=model, stream=True)
+            answer = assistant.complete(SYSTEM, question, images=[image_b64], model=model, stream=True)
         except Exception as exc:
             msg = str(exc)
             if "isn't downloaded" in msg or "not found" in msg:
@@ -61,19 +63,17 @@ class VisionSkill(Skill):
         params={"question": "What to find out, e.g. 'what does this error mean?'", "what": "screen or window"},
     )
     def ask_about_screen(self, question: str = "What's on my screen?", what: Literal["screen", "window"] = "screen") -> ToolResult:
-        hwnd = self.ctx.services.get("last_window") if what == "window" else None
-        hide = self.ctx.services.get("hide_popup")
-        if callable(hide):
-            hide()
-            time.sleep(0.4)
-        show = self.ctx.services.get("show_popup")
+        hwnd = self.ctx.host.last_window if what == "window" else None
+        hidden = self.ctx.host.hide()
+        if hidden:
+            time.sleep(0.4)  # let the popup fade out of the shot
         try:
             image = self._grab(hwnd)
         except (NotOnWindows, OSError, ImportError) as exc:
             return fail(f"Couldn't capture the screen: {exc}")
         finally:
-            if callable(show) and callable(hide):
-                show()
+            if hidden:
+                self.ctx.host.show()
         return self._ask(question, encode_image(image))
 
     @tool("Answer a question about an image file.", params={"path": "Full path to the image", "question": "What to find out"})

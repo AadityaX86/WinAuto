@@ -15,9 +15,9 @@ def _isolated_home(tmp_path, monkeypatch):
 
 @pytest.fixture
 def ctx(tmp_path):
+    from winauto.adapters.storage.db import Database
     from winauto.config import Config
     from winauto.core.context import Context
-    from winauto.adapters.storage.db import Database
 
     notes = []
     c = Context(config=Config(), db=Database(":memory:"), data_dir=tmp_path,

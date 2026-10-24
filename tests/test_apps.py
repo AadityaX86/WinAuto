@@ -4,10 +4,10 @@ import sys
 
 import pytest
 
+from winauto.adapters.winos.apps import AppEntry, WindowInfo
 from winauto.core.quick import QuickMatcher
 from winauto.core.registry import Registry
 from winauto.skills.apps import AppsSkill
-from winauto.adapters.winos.apps import AppEntry, WindowInfo
 
 
 class FakeWindowsApps:

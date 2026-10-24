@@ -3,14 +3,14 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 
 import pytest
-
 from fakes import RecordingConfirmer, ScriptedLLM
+
+from winauto.adapters.winos.apps import WindowInfo
 from winauto.skills.briefing import BriefingSkill
 from winauto.skills.calendar import CalendarSkill, parse_ics
 from winauto.skills.focus import FocusSkill
 from winauto.skills.info import InfoSkill, parse_rss
 from winauto.skills.voice import VoiceSkill, speakable
-from winauto.adapters.winos.apps import WindowInfo
 
 NOW = datetime(2026, 10, 24, 8, 30)  # Saturday morning
 
@@ -100,7 +100,7 @@ def test_local_events(calendar, ctx):
 
     skill, _, clock = calendar
     rem = RemindersSkill(ctx, clock=clock, sound=lambda k: None)
-    ctx.services["skills"] = {"reminders": rem}
+    ctx.skills = {"reminders": rem}
     r = skill.add_event("Lunch with Ram", "today 1pm")
     assert r.ok and "remind you 10 minutes before" in r.message
     assert "Lunch with Ram" in skill.get_agenda("today").message
@@ -180,7 +180,7 @@ def test_briefing(ctx, calendar):
             return ok("**Pokhara**: 18°C and sunny.")
 
     ctx.config.user_name = "Aaditya Joshi"
-    ctx.services["skills"] = {"calendar": cal, "notes": notes, "web": Weather()}
+    ctx.skills = {"calendar": cal, "notes": notes, "web": Weather()}
     b = BriefingSkill(ctx, clock=clock)
     assert b.due_for_morning_briefing()
     r = b.daily_briefing(include_news=False)
@@ -273,5 +273,5 @@ def runtime(ctx):
     ("stop talking", "stop_speaking"),
 ])
 def test_routing(runtime, text, tool):
-    call = runtime.ctx.services["quick_match"](text)
+    call = runtime.match_command(text)
     assert call is not None and call.name == tool, (text, call)

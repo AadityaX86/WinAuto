@@ -7,17 +7,17 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 from typing import Literal
 
 import pytest
-
 from fakes import RecordingConfirmer, ScriptedLLM
+
+from winauto.adapters.llm import OllamaClient, OpenAICompatClient
+from winauto.adapters.storage.db import Database
 from winauto.config import Config, load_config, save_config
 from winauto.core.agent import Agent
-from winauto.adapters.llm import OllamaClient, OpenAICompatClient
 from winauto.core.llm import LLMError, ToolCall, extract_text_tool_calls, strip_thinking
 from winauto.core.matching import best, normalize, score
 from winauto.core.quick import QuickMatcher, clean_command, is_simple
 from winauto.core.registry import Registry
 from winauto.core.skill import QuickRule, Risk, Skill, fail, ok, tool
-from winauto.adapters.storage.db import Database
 
 
 class Demo(Skill):

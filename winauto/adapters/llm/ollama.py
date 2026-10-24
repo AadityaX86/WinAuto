@@ -14,8 +14,8 @@ from winauto.core.llm import (
     ToolCall,
     extract_text_tool_calls,
     parse_arguments,
-    strip_thinking,
     schema_tool_names,
+    strip_thinking,
 )
 
 log = logging.getLogger(__name__)

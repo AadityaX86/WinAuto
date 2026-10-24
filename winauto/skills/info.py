@@ -10,8 +10,10 @@ import xml.etree.ElementTree as ET
 from email.utils import parsedate_to_datetime
 from typing import Any, Callable
 
-from winauto.core.skill import QuickRule, Skill, ToolResult, fail, ok, tool
 from winauto.adapters.http import FetchError, fetch, fetch_json, strip_tags
+from winauto.core.context import Context
+from winauto.core.skill import QuickRule, Skill, ToolResult, fail, ok, tool
+from winauto.skills.shared.units import known_unit
 
 CURRENCY_WORDS = {
     "dollar": "USD", "dollars": "USD", "usd": "USD", "bucks": "USD", "euro": "EUR", "euros": "EUR",
@@ -24,11 +26,12 @@ RUPEE_BY_COUNTRY = {"977": "NPR", "92": "PKR", "94": "LKR", "91": "INR"}
 
 class InfoSkill(Skill):
     name = "info"
+    icon = "book"
     description = "Currency rates, word definitions, Wikipedia summaries, news headlines."
     keywords = r"\b(currency|exchange rate|convert|usd|eur|npr|inr|rupees?|dollars?|euros?|define|definition|meaning|wiki(?:pedia)?|news|headlines)\b"
     prompt_hint = "Info: use convert_currency for money (live rates), get_news for headlines."
 
-    def __init__(self, ctx: Any, json_fetcher: Callable[..., Any] | None = None,
+    def __init__(self, ctx: Context, json_fetcher: Callable[..., Any] | None = None,
                  fetcher: Callable[..., tuple[str, str]] | None = None):
         super().__init__(ctx)
         self._json = json_fetcher or fetch_json
@@ -137,9 +140,7 @@ class InfoSkill(Skill):
             src, dst = self._code(m["f"]), self._code(m["t"])
             if not (re.fullmatch(r"[A-Z]{3}", src) and re.fullmatch(r"[A-Z]{3}", dst)):
                 return None
-            from winauto.skills.utils import _UNITS, _unit
-
-            if _unit(m["f"]) in _UNITS or _unit(m["t"]) in _UNITS:
+            if known_unit(m["f"]) or known_unit(m["t"]):
                 return None  # it's a unit conversion (e.g. "kms")
             return "convert_currency", {"amount": float(m["a"].replace(",", "")), "from_currency": src, "to_currency": dst}
 

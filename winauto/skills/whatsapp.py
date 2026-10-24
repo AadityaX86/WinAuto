@@ -6,15 +6,17 @@ import logging
 import re
 from typing import Any
 
-from winauto.core.skill import QuickRule, Risk, Skill, ToolResult, fail, ok, tool
-from winauto.skills.contacts import ContactBook, normalize_phone
 from winauto.adapters.winos import NotOnWindows
 from winauto.adapters.winos.whatsapp import WhatsAppDesktop
+from winauto.core.context import Context
+from winauto.core.skill import QuickRule, Risk, Skill, ToolResult, fail, ok, tool
+from winauto.skills.shared.contacts import ContactBook, normalize_phone
 
 log = logging.getLogger(__name__)
 
 class WhatsAppSkill(Skill):
     name = "whatsapp"
+    icon = "message"
     description = "WhatsApp messages."
     keywords = r"\b(whats ?app|wa|messages?|msg|chat|dm)\b|\b(?:tell|text|ping|send)\s+(?!me\b|us\b|it\b)\w+"
     prompt_hint = (
@@ -22,7 +24,7 @@ class WhatsAppSkill(Skill):
         "send it (casual, short, no sign-off). The user approves it first."
     )
 
-    def __init__(self, ctx: Any, backend: Any = None):
+    def __init__(self, ctx: Context, backend: Any = None):
         super().__init__(ctx)
         self.backend = backend or WhatsAppDesktop()
         self.book = ContactBook(ctx)

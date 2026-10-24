@@ -161,7 +161,7 @@ class Agent:
         if not text:
             return AgentReply("")
         reply = self._handle(text)
-        self._remember(text, reply)
+        self.remember(text, reply)
         return reply
 
     # ----- internals -----
@@ -300,7 +300,8 @@ class Agent:
             log.exception("Tool %s failed", tool.name)
             return fail(f"{tool.name.replace('_', ' ')} failed: {exc}")
 
-    def _remember(self, text: str, reply: AgentReply) -> None:
+    def remember(self, text: str, reply: AgentReply) -> None:
+        """Add a finished exchange to the conversation history (also used for launcher actions)."""
         if not reply.text:
             return
         summary = reply.text

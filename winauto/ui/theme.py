@@ -6,7 +6,16 @@ import sys
 from dataclasses import dataclass
 
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QColor, QFont, QGuiApplication, QIcon, QLinearGradient, QPainter, QPalette, QPixmap
+from PySide6.QtGui import (
+    QColor,
+    QFont,
+    QGuiApplication,
+    QIcon,
+    QLinearGradient,
+    QPainter,
+    QPalette,
+    QPixmap,
+)
 
 
 @dataclass(frozen=True)

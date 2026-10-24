@@ -10,11 +10,21 @@ import threading
 import time
 from typing import Any
 
-from winauto.core.matching import normalize, rank, score
-from winauto.core.quick import is_simple
-from winauto.core.skill import QuickRule, Risk, Skill, Suggestion, ToolResult, fail, ok, tool
 from winauto.adapters.winos import NotOnWindows
 from winauto.adapters.winos.apps import AppEntry, WindowInfo
+from winauto.core.context import Context
+from winauto.core.matching import normalize, rank, score
+from winauto.core.quick import is_simple
+from winauto.core.skill import (
+    QuickRule,
+    Risk,
+    Skill,
+    Suggestion,
+    ToolResult,
+    fail,
+    ok,
+    tool,
+)
 
 log = logging.getLogger(__name__)
 
@@ -79,6 +89,7 @@ _STRIP_WORDS = re.compile(r"^(?:the|my|a)\s+|\s+(?:app|application|program|windo
 
 class AppsSkill(Skill):
     name = "apps"
+    icon = "app"
     description = "Open, close, switch between and list apps."
     keywords = r"\b(open|launch|start|run|close|quit|exit|kill|switch|apps?|programs?|windows?|running|installed|focus|bring up)\b"
     prompt_hint = (
@@ -86,7 +97,7 @@ class AppsSkill(Skill):
         "For websites use open_website instead."
     )
 
-    def __init__(self, ctx: Any, backend: Any = None):
+    def __init__(self, ctx: Context, backend: Any = None):
         super().__init__(ctx)
         if backend is None:
             from winauto.adapters.winos.apps import WindowsApps

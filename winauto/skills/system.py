@@ -6,8 +6,19 @@ import logging
 import re
 from typing import Any, Literal
 
-from winauto.core.skill import QuickRule, Risk, Skill, Suggestion, ToolResult, fail, ok, tool
+from winauto.adapters import sysinfo
 from winauto.adapters.winos import NotOnWindows
+from winauto.core.context import Context
+from winauto.core.skill import (
+    QuickRule,
+    Risk,
+    Skill,
+    Suggestion,
+    ToolResult,
+    fail,
+    ok,
+    tool,
+)
 
 log = logging.getLogger(__name__)
 
@@ -53,12 +64,13 @@ def _human_duration(seconds: float) -> str:
 
 class SystemSkill(Skill):
     name = "system"
+    icon = "settings"
     description = "PC controls: volume, brightness, theme, Wi-Fi, Bluetooth, power, battery, health."
     keywords = (r"\b(volume|sound|mute|unmute|louder|quieter|brightness|bright|dim|screen|dark|light mode|wi-?fi|"
                 r"bluetooth|lock|sleep|shut ?down|restart|reboot|sign out|log ?out|battery|cpu|ram|memory|disk|"
                 r"slow|recycle|trash|settings?|pc|computer|laptop|hotspot|night light)\b")
 
-    def __init__(self, ctx: Any, backend: Any = None):
+    def __init__(self, ctx: Context, backend: Any = None):
         super().__init__(ctx)
         if backend is None:
             from winauto.adapters.winos.system import WindowsSystem
@@ -198,53 +210,28 @@ class SystemSkill(Skill):
 
     @tool("Battery level and whether it's charging.")
     def battery_status(self) -> ToolResult:
-        import psutil
-
-        battery = psutil.sensors_battery()
+        battery = sysinfo.battery()
         if battery is None:
             return ok("This PC has no battery (it's on mains power).")
-        state = "charging" if battery.power_plugged else "on battery"
-        left = ""
-        if not battery.power_plugged and battery.secsleft not in (psutil.POWER_TIME_UNLIMITED, psutil.POWER_TIME_UNKNOWN):
-            left = f", about {_human_duration(battery.secsleft)} left"
+        state = "charging" if battery.plugged_in else "on battery"
+        left = f", about {_human_duration(battery.seconds_left)} left" if battery.seconds_left else ""
         return ok(f"Battery at {battery.percent:.0f}% ({state}{left}).")
 
     @tool("PC health: CPU, memory, disk space, uptime, and what's using the most memory.")
     def pc_status(self) -> ToolResult:
-        import psutil
-
-        cpu = psutil.cpu_percent(interval=0.5)
-        mem = psutil.virtual_memory()
-        root = "C:\\" if self._is_windows() else "/"
-        disk = psutil.disk_usage(root)
-        procs = []
-        for p in psutil.process_iter(["name", "memory_info"]):
-            try:
-                procs.append((p.info["memory_info"].rss, p.info["name"]))
-            except (TypeError, AttributeError):
-                continue
-        totals: dict[str, int] = {}
-        for rss, name in procs:
-            key = (name or "?").removesuffix(".exe")
-            totals[key] = totals.get(key, 0) + rss
-        top = sorted(totals.items(), key=lambda x: -x[1])[:5]
+        u = sysinfo.usage()
         try:
             uptime = _human_duration(self.backend.uptime_seconds())
         except Exception:
             uptime = "unknown"
         lines = [
-            f"CPU {cpu:.0f}% · Memory {mem.percent:.0f}% ({_human_bytes(mem.used)} of {_human_bytes(mem.total)})",
-            f"Disk {root} {_human_bytes(disk.free)} free of {_human_bytes(disk.total)}",
+            f"CPU {u.cpu_percent:.0f}% · Memory {u.memory_percent:.0f}% "
+            f"({_human_bytes(u.memory_used)} of {_human_bytes(u.memory_total)})",
+            f"Disk {u.disk_root} {_human_bytes(u.disk_free)} free of {_human_bytes(u.disk_total)}",
             f"Up for {uptime}",
-            "Using the most memory: " + ", ".join(f"{n} ({_human_bytes(b)})" for n, b in top),
+            "Using the most memory: " + ", ".join(f"{n} ({_human_bytes(b)})" for n, b in u.top_memory),
         ]
         return ok("\n".join(lines))
-
-    @staticmethod
-    def _is_windows() -> bool:
-        import sys
-
-        return sys.platform == "win32"
 
     @tool("Empty the Recycle Bin (permanent).", risk=Risk.CONFIRM, confirm_label="Empty it")
     def empty_recycle_bin(self) -> ToolResult:

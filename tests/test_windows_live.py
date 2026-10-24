@@ -52,7 +52,10 @@ def test_hotkey_register_and_stop():
 
 
 def test_start_with_windows_roundtrip():
-    from winauto.adapters.winos.startup import set_start_with_windows, starts_with_windows
+    from winauto.adapters.winos.startup import (
+        set_start_with_windows,
+        starts_with_windows,
+    )
 
     before = starts_with_windows()
     try:

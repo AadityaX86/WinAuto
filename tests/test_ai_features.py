@@ -3,9 +3,9 @@ from __future__ import annotations
 import json
 
 import pytest
-
 from fakes import RecordingConfirmer, ScriptedLLM
 from test_phase3 import FakeClipboard
+
 from winauto.adapters.llm import OllamaClient
 from winauto.core.llm import TokenGate
 from winauto.skills.textactions import TextActionsSkill
@@ -74,7 +74,7 @@ def test_images_are_sent_to_ollama():
 # ---------- memory ----------
 
 def test_memory(runtime):
-    mem = runtime.ctx.services["skills"]["memory"]
+    mem = runtime.ctx.skill("memory")
     assert mem.remember_fact("My sister's name is Sita.").ok
     assert mem.remember_fact("my sister's name is sita").message == "I already know that."
     assert "My sister's name is Sita" in runtime.agent.system_prompt()
@@ -84,7 +84,7 @@ def test_memory(runtime):
 
 
 def test_memory_routing(runtime):
-    m = runtime.ctx.services["quick_match"]
+    m = runtime.match_command
     assert m("remember that my birthday is on 5 May").name == "remember_fact"
     assert m("remember the car is on level 3").name == "add_note"
     assert m("what do you know about me").name == "list_memories"
@@ -96,7 +96,7 @@ def test_transform_text_uses_selection_and_offers_replace(runtime):
     cb = FakeClipboard()
     pasted = []
     skill = TextActionsSkill(runtime.ctx, clipboard=cb, paste=lambda: pasted.append(cb.text))
-    runtime.ctx.services["selection"] = "i has went to the shop"
+    runtime.ctx.host.selection = "i has went to the shop"
     runtime.agent.llm.replies.append("I went to the shop.")
     r = skill.transform_text("fix")
     assert r.ok and r.message == "I went to the shop."
@@ -115,7 +115,7 @@ def test_transform_text_needs_text(ctx):
 
 
 def test_text_quick_rules(runtime):
-    m = runtime.ctx.services["quick_match"]
+    m = runtime.match_command
     assert m("fix the grammar").arguments == {"action": "fix"}
     assert m("translate this to nepali").arguments == {"action": "translate", "language": "Nepali"}
     assert m("make it more formal").arguments == {"action": "formal"}
@@ -136,4 +136,4 @@ def test_vision(runtime):
     assert r.ok and r.message == "A blank white screen."
     call = runtime.agent.llm.calls[-1]
     assert call["model"] == "gemma3:4b" and call["messages"][1]["images"]
-    assert runtime.ctx.services["quick_match"]("what's on my screen").name == "ask_about_screen"
+    assert runtime.match_command("what's on my screen").name == "ask_about_screen"

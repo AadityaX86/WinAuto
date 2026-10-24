@@ -32,3 +32,10 @@ def open_app_uri(uri: str) -> bool:
 
 def open_url(url: str) -> None:
     webbrowser.open(url)
+
+
+def move_to_trash(path: str) -> None:
+    """Send a file or folder to the Recycle Bin."""
+    from send2trash import send2trash
+
+    send2trash(path)

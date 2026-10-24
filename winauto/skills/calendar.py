@@ -9,10 +9,19 @@ from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
 from typing import Any, Callable
 
-from winauto.core.skill import QuickRule, Risk, Skill, ToolResult, fail, ok, tool
-from winauto.core.timeparse import describe, parse_when
 from winauto.adapters.http import FetchError, fetch
-from winauto.adapters.storage.db import now_iso
+from winauto.core.context import Context
+from winauto.core.skill import (
+    QuickRule,
+    Risk,
+    Skill,
+    ToolResult,
+    Widget,
+    fail,
+    ok,
+    tool,
+)
+from winauto.core.timeparse import describe, now_iso, parse_when
 
 log = logging.getLogger(__name__)
 WEEKDAY_CODES = ["MO", "TU", "WE", "TH", "FR", "SA", "SU"]
@@ -170,11 +179,12 @@ def _expand(ev: dict[str, Any], window_start: datetime, window_end: datetime) ->
 
 class CalendarSkill(Skill):
     name = "calendar"
+    icon = "calendar"
     description = "Your agenda: synced calendars (read-only) and local events."
     keywords = r"\b(calendar|agenda|schedule|meetings?|events?|appointments?|busy|free time|what's on|plans)\b"
     prompt_hint = "Calendar: get_agenda shows events for a day; add_event saves a local event (with a reminder)."
 
-    def __init__(self, ctx: Any, fetcher: Callable[..., tuple[str, str]] | None = None,
+    def __init__(self, ctx: Context, fetcher: Callable[..., tuple[str, str]] | None = None,
                  clock: Callable[[], datetime] = datetime.now):
         super().__init__(ctx)
         self._fetch = fetcher or fetch
@@ -278,7 +288,7 @@ class CalendarSkill(Skill):
             "INSERT INTO events(title, start_at, end_at, all_day, created_at) VALUES(?, ?, ?, ?, ?)",
             (title.strip(), start.isoformat(sep=" "), end.isoformat(sep=" "), int(all_day), now_iso()))
         reminder = ""
-        reminders = self.ctx.services.get("skills", {}).get("reminders")
+        reminders = self.ctx.skill("reminders")
         if remind and not all_day and reminders and start - timedelta(minutes=10) > self.clock():
             reminders.set_reminder(f"{title.strip()} in 10 minutes", (start - timedelta(minutes=10)).isoformat(sep=" "))
             reminder = " I'll remind you 10 minutes before."
@@ -292,6 +302,15 @@ class CalendarSkill(Skill):
             return fail(f"No local event matching “{title}”. (Synced calendars can only be changed in their own app.)")
         self.ctx.db.execute("DELETE FROM events WHERE id = ?", (rows[0]["id"],))
         return ok(f"Deleted {rows[0]['title']}.")
+
+    def widgets(self) -> list[Widget]:
+        now = self.clock()
+        events, _ = self.events_between(now, datetime.combine(now.date(), datetime.max.time()))
+        upcoming = [e for e in events if not e.all_day and e.start >= now]
+        if not upcoming:
+            return []
+        e = upcoming[0]
+        return [Widget("calendar", f"{e.title[:26]} · {e.start.strftime('%I:%M %p').lstrip('0')}", order=30)]
 
     def quick_rules(self) -> list[QuickRule]:
         day = r"(?:\s+(?:for\s+|on\s+)?(?P<d>today|tomorrow|monday|tuesday|wednesday|thursday|friday|saturday|sunday))?"

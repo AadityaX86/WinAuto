@@ -3,13 +3,15 @@
 from __future__ import annotations
 
 import logging
+import time
 from pathlib import Path
 from typing import Any, Literal
 
-from winauto.core.skill import QuickRule, Skill, ToolResult, fail, ok, tool
 from winauto.adapters.winos import NotOnWindows
 from winauto.adapters.winos.folders import folder as known_folder
 from winauto.adapters.winos.shell import open_app_uri
+from winauto.core.context import Context
+from winauto.core.skill import QuickRule, Skill, ToolResult, fail, ok, tool
 
 log = logging.getLogger(__name__)
 
@@ -37,11 +39,12 @@ def layout_rect(position: str, area: tuple[int, int, int, int]) -> tuple[int, in
 
 class WindowLayoutSkill(Skill):
     name = "windows"
+    icon = "layout"
     description = "Arrange windows and take screenshots."
     keywords = r"\b(snap|maximi[sz]e|minimi[sz]e|restore|side by side|window|windows|screenshot|screen ?shot|snip|desktop|half|corner)\b"
     prompt_hint = "Windows: leave 'app' empty to mean the window the user was using before opening WinAuto."
 
-    def __init__(self, ctx: Any, backend: Any = None, apps: Any = None):
+    def __init__(self, ctx: Context, backend: Any = None, apps: Any = None):
         super().__init__(ctx)
         if backend is None:
             from winauto.adapters.winos.windows import WindowsLayout
@@ -51,14 +54,7 @@ class WindowLayoutSkill(Skill):
         self._apps = apps
 
     def _apps_skill(self):
-        if self._apps is None:
-            self._apps = self.ctx.services.get("skills", {}).get("apps")
-        if self._apps is None:
-            from winauto.skills.apps import AppsSkill
-
-            self._apps = AppsSkill(self.ctx)
-            self._apps.start()
-        return self._apps
+        return self._apps or self.ctx.skill("apps")
 
     def _window(self, app: str) -> tuple[int | None, str]:
         """The window to act on: an app's, or the one in use before WinAuto opened."""
@@ -67,9 +63,7 @@ class WindowLayoutSkill(Skill):
             if not wins:
                 return None, f"{app} isn't open."
             return wins[0].hwnd, wins[0].title
-        hwnd = self.ctx.services.get("last_window")
-        if callable(hwnd):
-            hwnd = hwnd()
+        hwnd = self.ctx.host.last_window
         return (hwnd, "the window") if hwnd else (None, "I don't know which window you mean. Name the app.")
 
     @tool(
@@ -130,11 +124,7 @@ class WindowLayoutSkill(Skill):
                 if not hwnd:
                     return fail(label)
             # Give the popup a moment to get out of the way.
-            hide = self.ctx.services.get("hide_popup")
-            if callable(hide):
-                hide()
-                import time
-
+            if self.ctx.host.hide():
                 time.sleep(0.4)
             target = known_folder("screenshots") or Path.home() / "Pictures" / "Screenshots"
             path = self.backend.screenshot(target, hwnd)

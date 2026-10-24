@@ -2,16 +2,16 @@
 
 from __future__ import annotations
 
-
 from winauto.core.matching import rank
 from winauto.core.skill import QuickRule, Skill, ToolResult, fail, ok, tool
-from winauto.adapters.storage.db import now_iso
+from winauto.core.timeparse import now_iso
 
 MAX_IN_PROMPT = 25
 
 
 class MemorySkill(Skill):
     name = "memory"
+    icon = "brain"
     description = "Facts about the user to remember across conversations."
     keywords = r"\b(remember|forget|memor(?:y|ies|ize)|you know about me|about me)\b"
     prompt_hint = (

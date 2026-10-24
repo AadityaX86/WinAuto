@@ -8,10 +8,17 @@ from email.message import EmailMessage
 from email.utils import formataddr, getaddresses, make_msgid
 from typing import Any
 
-from winauto.adapters.gmail import SECRET_NAME, EmailError, GmailBackend, body_text, short_date
+from winauto.adapters.gmail import (
+    SECRET_NAME,
+    EmailError,
+    GmailBackend,
+    body_text,
+    short_date,
+)
 from winauto.adapters.secrets import get_secret
+from winauto.core.context import Context
 from winauto.core.skill import QuickRule, Risk, Skill, ToolResult, fail, ok, tool
-from winauto.skills.contacts import EMAIL_RE, ContactBook
+from winauto.skills.shared.contacts import EMAIL_RE, ContactBook
 
 log = logging.getLogger(__name__)
 
@@ -23,6 +30,7 @@ SETUP_HELP = (
 
 class EmailSkill(Skill):
     name = "email"
+    icon = "mail"
     description = "Gmail: send, check, read, reply."
     keywords = r"\b(e-?mails?|mail|gmail|inbox|reply|replied|unread)\b"
     prompt_hint = (
@@ -31,7 +39,7 @@ class EmailSkill(Skill):
         "read_email to answer questions about emails."
     )
 
-    def __init__(self, ctx: Any, backend: Any = None):
+    def __init__(self, ctx: Context, backend: Any = None):
         super().__init__(ctx)
         self._backend = backend
         self.book = ContactBook(ctx)

@@ -7,10 +7,11 @@ import re
 import urllib.parse
 from typing import Any, Callable, Literal
 
-from winauto.core.skill import QuickRule, Skill, ToolResult, fail, ok, tool
 from winauto.adapters.http import FetchError, fetch
 from winauto.adapters.winos import NotOnWindows
 from winauto.adapters.winos.media import WindowsMedia
+from winauto.core.context import Context
+from winauto.core.skill import QuickRule, Skill, ToolResult, fail, ok, tool
 
 log = logging.getLogger(__name__)
 
@@ -30,10 +31,11 @@ def _app_name(app_id: str) -> str:
 
 class MediaSkill(Skill):
     name = "media"
+    icon = "music"
     description = "Media controls and playing music."
     keywords = r"\b(play|pause|resume|skip|next|previous|songs?|track|music|playing|spotify|youtube|video|listen|playlist|album)\b"
 
-    def __init__(self, ctx: Any, backend: Any = None, fetcher: Callable[..., tuple[str, str]] | None = None):
+    def __init__(self, ctx: Context, backend: Any = None, fetcher: Callable[..., tuple[str, str]] | None = None):
         super().__init__(ctx)
         self.backend = backend or WindowsMedia()
         self._fetch = fetcher or fetch

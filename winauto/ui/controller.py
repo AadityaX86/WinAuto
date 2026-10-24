@@ -1,10 +1,13 @@
-"""Connects the popup to the agent: live search, running results, chat, approvals, streaming."""
+"""Connects the popup to the app: live search, running results, chat, approvals, streaming.
+
+It talks to the runtime's agent, launcher and services (winauto/services) only;
+anything that needs the database, a skill or Windows goes through a service.
+"""
 
 from __future__ import annotations
 
 import logging
 import threading
-from datetime import datetime
 
 from PySide6.QtCore import QObject, QTimer, Signal
 
@@ -12,23 +15,12 @@ from winauto.core.agent import AgentReply, ConfirmRequest, Decision, Step
 from winauto.core.launcher import ASK_TOOL
 from winauto.core.llm import ToolCall
 from winauto.core.skill import Suggestion, ToolResult
-from winauto.adapters.storage.db import now_iso
-from winauto.ui.popup import ConfirmCard, PopupWindow
+from winauto.ui.cards import ConfirmCard
+from winauto.ui.popup import PopupWindow
 
 log = logging.getLogger(__name__)
 
 COPY_TOOLS = {"set_clipboard", "copy_from_history"}
-
-HOME_SUGGESTIONS = [
-    Suggestion("Daily briefing", "daily_briefing", {}, "Weather, calendar, todos and news", "Command", "sun"),
-    Suggestion("What's on my screen?", "ask_about_screen", {"question": "What's on my screen? Give a short overview."},
-               "Ask the vision model", "Command", "eye"),
-    Suggestion("Show my todos", "list_todos", {}, "Open tasks", "Command", "check"),
-    Suggestion("Start a 25-minute focus session", "start_focus", {"minutes": 25}, "Pomodoro", "Command", "target"),
-    Suggestion("Clipboard history", "clipboard_history", {}, "Recently copied text", "Command", "clipboard"),
-    Suggestion("Check my email", "check_email", {}, "Unread in Gmail", "Command", "mail"),
-]
-
 
 class _Pending:
     def __init__(self, request: ConfirmRequest):
@@ -141,15 +133,8 @@ class Controller(QObject):
     # ----- running things -----
 
     def _record(self, text: str) -> None:
-        if not text or self.runtime is None:
-            return
-        try:
-            db = self.runtime.db
-            db.execute("DELETE FROM history WHERE text = ?", (text,))
-            db.execute("INSERT INTO history(text, created_at) VALUES(?, ?)", (text, now_iso()))
-            db.execute("DELETE FROM history WHERE id NOT IN (SELECT id FROM history ORDER BY id DESC LIMIT 200)")
-        except Exception:
-            log.debug("couldn't record history", exc_info=True)
+        if self.runtime is not None:
+            self.runtime.home.record(text)
 
     def submit(self, text: str) -> None:
         """Send text to the assistant (quick command or AI)."""
@@ -187,9 +172,7 @@ class Controller(QObject):
             label = key[len("custom:"):]
         else:
             args = {"action": key}
-            from winauto.skills.textactions import ACTIONS
-
-            label = ACTIONS.get(key, (key,))[0]
+            label = self.runtime.writing.label(key)
         self.popup.add_user(label)
         self._run_call(ToolCall("transform_text", args), label, quiet=True)
 
@@ -255,7 +238,7 @@ class Controller(QObject):
         reply = AgentReply(result.message, [step], error=None if result.ok or result.cancelled else "tool")
         self.popup.add_reply(reply)
         if self.runtime and label:
-            self.runtime.agent._remember(label, reply)
+            self.runtime.agent.remember(label, reply)
         self._speak(result.message)
         self.refresh_home()
 
@@ -277,11 +260,8 @@ class Controller(QObject):
                 self.popup.set_mode("home")
 
     def _speak(self, text: str) -> None:
-        if not text or self.runtime is None or not getattr(self.runtime.config, "speak_replies", False):
-            return
-        voice = self.runtime.ctx.services.get("skills", {}).get("voice")
-        if voice:
-            threading.Thread(target=voice.say, args=(text,), daemon=True).start()
+        if text and self.runtime is not None:
+            threading.Thread(target=self.runtime.voice.speak_reply, args=(text,), daemon=True).start()
 
     def _show_card(self, pending: _Pending) -> None:
         card = self.popup.add_card(pending.request)
@@ -304,7 +284,7 @@ class Controller(QObject):
         self.popup.set_busy(False)
         if self.runtime:
             self.runtime.agent.cancel()
-            self.runtime.ctx.services.pop("selection", None)
+            self.runtime.writing.end()
         self.confirmer.cancel_all()
         # Cleared right before the next request, once any stopped one has finished.
         self._reset_pending = True
@@ -316,36 +296,22 @@ class Controller(QObject):
     def open_text_mode(self, selection: str) -> None:
         if self.runtime is None:
             return
-        from winauto.skills.textactions import ACTIONS
-
-        self.runtime.ctx.services["selection"] = selection
-        actions = [(k, label, ic) for k, (label, ic, _) in ACTIONS.items()]
-        self.popup.show_text_mode(selection, actions)
+        self.runtime.writing.begin(selection)
+        self.popup.show_text_mode(selection, self.runtime.writing.actions())
 
     def dictate(self) -> None:
         """Windows' own voice typing (Win+H) types into the search box."""
         self.popup.input.setFocus()
-        import sys
-
-        if sys.platform != "win32":
+        if self.runtime is None or not self.runtime.voice.can_dictate:
             self.popup.flash("Dictation needs Windows")
             return
-
-        def press() -> None:
-            try:
-                from winauto.adapters.winos.keyboard import press as press_keys
-
-                press_keys("win+h")
-            except Exception:
-                log.debug("voice typing failed", exc_info=True)
-
-        QTimer.singleShot(150, lambda: threading.Thread(target=press, daemon=True).start())
+        voice = self.runtime.voice
+        QTimer.singleShot(150, lambda: threading.Thread(target=voice.dictate, daemon=True).start())
 
     def maybe_morning_briefing(self) -> None:
         if self.runtime is None or self._busy or self.popup.has_chat:
             return
-        briefing = self.runtime.ctx.services.get("skills", {}).get("briefing")
-        if briefing and briefing.due_for_morning_briefing():
+        if self.runtime.home.briefing_due():
             self._run_call(ToolCall("daily_briefing", {}), "Daily briefing")
 
     # ----- home screen -----
@@ -353,56 +319,17 @@ class Controller(QObject):
     def refresh_home(self) -> None:
         if self.runtime is None:
             return
-        self.popup.home.refresh_greeting(self.runtime.config.user_name)
-        recent = []
-        try:
-            for r in self.runtime.db.query("SELECT text FROM history ORDER BY id DESC LIMIT 5"):
-                recent.append(Suggestion(r["text"], ASK_TOOL, {"text": r["text"]}, "", "", "history"))
-        except Exception:
-            pass
-        available = {t.name for t in self.runtime.registry.tools}
-        suggestions = [s for s in HOME_SUGGESTIONS if s.tool in available]
-        self.popup.home.set_lists(suggestions, recent)
+        home = self.runtime.home
+        self.popup.home.refresh_greeting(home.user_name)
+        self.popup.home.set_lists(home.suggestions(), home.recent())
         threading.Thread(target=self._collect_home_data, daemon=True, name="home").start()
 
     def _collect_home_data(self) -> None:
-        items: list[tuple[str, str]] = []
-        rt = self.runtime
         try:
-            now = datetime.now()
-            end = datetime.combine(now.date(), datetime.max.time()).isoformat(sep=" ")
-            due = rt.db.one("SELECT COUNT(*) AS n FROM todos WHERE done = 0 AND due_at IS NOT NULL AND due_at <= ?", (end,))["n"]
-            open_n = rt.db.one("SELECT COUNT(*) AS n FROM todos WHERE done = 0")["n"]
-            if open_n:
-                items.append(("check", f"{due} due today" if due else f"{open_n} open todo{'s' if open_n != 1 else ''}"))
-            nxt = rt.db.one("SELECT text, due_at FROM reminders WHERE active = 1 ORDER BY due_at LIMIT 1")
-            if nxt:
-                when = datetime.fromisoformat(nxt["due_at"])
-                stamp = when.strftime("%I:%M %p").lstrip("0") if when.date() == now.date() else when.strftime("%a %I:%M %p")
-                items.append(("bell", f"{nxt['text'][:28]} · {stamp}"))
-            cal = rt.ctx.services.get("skills", {}).get("calendar")
-            if cal and rt.config.calendar_urls:
-                events, _ = cal.events_between(now, datetime.combine(now.date(), datetime.max.time()))
-                upcoming = [e for e in events if not e.all_day and e.start >= now]
-                if upcoming:
-                    e = upcoming[0]
-                    items.append(("calendar", f"{e.title[:26]} · {e.start.strftime('%I:%M %p').lstrip('0')}"))
-            cached = rt.db.get_value("home_weather")
-            fetched_at = float(rt.db.get_value("home_weather_at") or 0)
-            if (not cached or now.timestamp() - fetched_at > 3600) and rt.ctx.services.get("skills", {}).get("web"):
-                w = rt.ctx.services["skills"]["web"].get_weather("")
-                if w.ok:
-                    import re
-
-                    m = re.search(r"(-?\d+)°C and ([^(]+?) \(", w.message)
-                    if m:
-                        cached = f"{m.group(1)}° {m.group(2).strip().capitalize()}"
-                        rt.db.set_value("home_weather", cached)
-                        rt.db.set_value("home_weather_at", str(now.timestamp()))
-            if cached:
-                items.append(("cloud", cached))
+            items = [(w.icon, w.text) for w in self.runtime.home.widgets()]
         except Exception:
             log.debug("home data failed", exc_info=True)
+            items = []
         self.home_data.emit(items)
 
     def _apply_home_data(self, items) -> None:

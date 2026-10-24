@@ -1,20 +1,28 @@
-"""Builds and holds everything the app needs (config, database, skills, AI, agent)."""
+"""The engine's composition root: builds config, database, skills, AI client and agent, and wires them.
+
+It also implements the `Assistant` port (winauto.core.context) that skills use to
+reach the engine, so skills never import this module.
+"""
 
 from __future__ import annotations
 
 import logging
 from typing import Callable
 
+from winauto.adapters.llm import make_client
+from winauto.adapters.storage.db import Database
 from winauto.config import Config, load_config, save_config
 from winauto.core.agent import Agent, Confirmer
 from winauto.core.context import Context
 from winauto.core.launcher import Launcher
-from winauto.adapters.llm import make_client
-from winauto.core.llm import LLMClient
+from winauto.core.llm import LLMClient, ToolCall
 from winauto.core.quick import QuickMatcher
+from winauto.core.skill import ToolResult
 from winauto.paths import data_dir, db_path
+from winauto.services.home import HomeService
+from winauto.services.voice import VoiceService
+from winauto.services.writing import WritingTools
 from winauto.skills import build_registry
-from winauto.adapters.storage.db import Database
 
 log = logging.getLogger(__name__)
 
@@ -35,7 +43,7 @@ class Runtime:
         if notify:
             self.ctx.notify = notify
         self.registry = build_registry(self.ctx)
-        self.ctx.services["skills"] = {s.name: s for s in self.registry.skills}
+        self.ctx.skills = {s.name: s for s in self.registry.skills}
         self.llm = llm or make_client(self.config.llm)
         self.agent = Agent(
             self.registry,
@@ -47,13 +55,21 @@ class Runtime:
             user_name=self.config.user_name,
             on_status=on_status,
         )
-        # Routines replay simple commands through the same path (with approvals).
         self._matcher = QuickMatcher(self.registry)
-        self.ctx.services["quick_match"] = self._matcher.match
-        self.ctx.services["run_tool"] = self.agent.run_tool
         self.launcher = Launcher(self.registry, self._matcher)
-        # For skills that need the model directly (rewriting text, reading the screen...).
-        self.ctx.services["complete"] = self.complete
+        self.ctx.assistant = self
+        # Application services for the UI (winauto/services).
+        self.home = HomeService(self.ctx, self.registry)
+        self.writing = WritingTools(self.ctx)
+        self.voice = VoiceService(self.ctx)
+
+    # ----- Assistant port (used by skills through ctx.assistant) -----
+
+    def match_command(self, text: str) -> ToolCall | None:
+        return self._matcher.match(text)
+
+    def run_tool(self, call: ToolCall) -> ToolResult:
+        return self.agent.run_tool(call)
 
     def complete(self, system: str, user: str, images: list[str] | None = None,
                  model: str | None = None, stream: bool = False) -> str:

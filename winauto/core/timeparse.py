@@ -59,6 +59,11 @@ RE_TIME_AT = re.compile(r"\b(?:at|by)\s+(\d{1,2})\b(?!\s*(?:%|[:.]\d|minutes?|mi
 RE_DAY_PART = re.compile(r"\b(?:at\s+|in the\s+|this\s+|by\s+)?(noon|midday|midnight|morning|afternoon|evening|tonight|night)\b")
 
 
+def now_iso() -> str:
+    """Current local time as stored in the database: '2026-10-24 17:05:00'."""
+    return datetime.now().replace(microsecond=0).isoformat(sep=" ")
+
+
 @dataclass
 class When:
     dt: datetime

@@ -20,7 +20,11 @@ class WhatsAppDesktop:
         return "web"
 
     def press_send(self, timeout: float = 15.0) -> bool:
-        from winauto.adapters.winos.keyboard import bring_to_front, press, wait_for_window
+        from winauto.adapters.winos.keyboard import (
+            bring_to_front,
+            press,
+            wait_for_window,
+        )
 
         hwnd = wait_for_window(WHATSAPP_EXES, timeout)
         if not hwnd:

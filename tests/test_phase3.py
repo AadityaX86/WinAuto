@@ -5,8 +5,9 @@ import time
 from pathlib import Path
 
 import pytest
-
 from fakes import RecordingConfirmer, ScriptedLLM
+
+from winauto.adapters.winos.apps import WindowInfo
 from winauto.core.quick import QuickMatcher
 from winauto.core.registry import Registry
 from winauto.skills.clipboard import ClipboardSkill
@@ -15,8 +16,6 @@ from winauto.skills.discord import DiscordSkill
 from winauto.skills.files import FilesSkill, kind_of
 from winauto.skills.media import MediaSkill, first_youtube_video
 from winauto.skills.window_layout import WindowLayoutSkill, layout_rect
-from winauto.adapters.winos.apps import WindowInfo
-
 
 # ---------------- discord ----------------
 
@@ -222,7 +221,7 @@ def test_layout(ctx):
     assert layout_rect("right", (0, 0, 1920, 1040)) == (960, 0, 960, 1040)
     assert skill.arrange_window("left", "chrome").ok and backend.placed[-1] == (42, 0, 0, 960, 1040)
     assert not skill.arrange_window("left", "").ok  # no remembered window yet
-    ctx.services["last_window"] = 77
+    ctx.host.last_window = 77
     assert skill.arrange_window("maximize").ok and backend.shown[-1] == (77, 3)
     assert not skill.arrange_window("left", "zoom").ok
     assert skill.take_screenshot("screen").ok
@@ -276,7 +275,7 @@ def runtime(ctx):
 ])
 
 def test_full_routing(runtime, text, tool):
-    call = runtime.ctx.services["quick_match"](text)
+    call = runtime.match_command(text)
     assert call is not None, text
     assert call.name == tool, (text, call)
 
@@ -284,11 +283,11 @@ def test_full_routing(runtime, text, tool):
 @pytest.mark.parametrize("text", ["close all tabs", "what is the capital of france", "remind me to call mom",
                                   "email ram that I'm late", "tell ram I'm late", "restart chrome"])
 def test_full_routing_leaves_for_model(runtime, text):
-    assert runtime.ctx.services["quick_match"](text) is None
+    assert runtime.match_command(text) is None
 
 
 def test_routines_end_to_end(runtime):
-    routines = runtime.ctx.services["skills"]["routines"]
+    routines = runtime.ctx.skill("routines")
     r = routines.create_routine("work mode", ["todo check email", "wait 0 seconds", "12*7"])
     assert not r.ok  # "wait 0 seconds" isn't a valid wait
     assert routines.create_routine("work mode", ["todo check email", "12*7"]).ok

@@ -4,10 +4,10 @@ from datetime import datetime, timedelta
 
 import pytest
 
+from winauto.adapters.gmail import GmailBackend, body_text
 from winauto.core.quick import QuickMatcher
 from winauto.core.registry import Registry
 from winauto.skills.contacts import ContactsSkill, normalize_phone, parse_csv, parse_vcf
-from winauto.adapters.gmail import GmailBackend, body_text
 from winauto.skills.gmail import EmailSkill
 from winauto.skills.reminders import RemindersSkill, next_occurrence
 from winauto.skills.whatsapp import WhatsAppSkill

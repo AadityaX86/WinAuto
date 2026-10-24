@@ -14,7 +14,10 @@ import logging
 import types
 import typing
 from dataclasses import dataclass, field
-from typing import Any, Callable
+from typing import TYPE_CHECKING, Any, Callable
+
+if TYPE_CHECKING:
+    from winauto.core.context import Context
 
 log = logging.getLogger(__name__)
 
@@ -270,6 +273,15 @@ class Suggestion:
 
 
 @dataclass
+class Widget:
+    """A small card on the home screen ("3 due today", "Dentist · 3 PM", "23° Sunny")."""
+
+    icon: str  # icon name (see ui/icons.py)
+    text: str
+    order: int = 50  # lower shows first
+
+
+@dataclass
 class QuickRule:
     """A fast, offline shortcut: if `pattern` matches the whole command,
     `handler(match)` returns (tool_name, args) to run without asking the AI.
@@ -285,6 +297,8 @@ class Skill:
     """Base class for a group of tools. Subclasses set `name` and add @tool methods."""
 
     name = "skill"
+    # Icon name from winauto/ui/icons.py, shown in results and Settings.
+    icon = "puzzle"
     description = ""
     # Extra guidance added to the system prompt when this skill is loaded.
     prompt_hint = ""
@@ -294,7 +308,7 @@ class Skill:
     # Always offer this skill's tools (general-purpose ones like web search).
     always = False
 
-    def __init__(self, ctx: Any):
+    def __init__(self, ctx: Context):
         self.ctx = ctx
 
     def quick_rules(self) -> list[QuickRule]:
@@ -307,6 +321,10 @@ class Skill:
     def prompt_context(self) -> str:
         """Extra text for the system prompt on every request (keep it short)."""
         return ""
+
+    def widgets(self) -> list[Widget]:
+        """Cards for the home screen. Runs off the UI thread, so a short network call is fine (cache it)."""
+        return []
 
     def start(self) -> None:
         """Called once when the app starts (warm caches, start timers...)."""

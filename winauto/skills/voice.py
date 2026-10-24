@@ -6,9 +6,10 @@ import logging
 import re
 from typing import Any
 
-from winauto.core.skill import QuickRule, Skill, ToolResult, fail, ok, tool
 from winauto.adapters.winos import NotOnWindows
 from winauto.adapters.winos.speech import Speaker
+from winauto.core.context import Context
+from winauto.core.skill import QuickRule, Skill, ToolResult, fail, ok, tool
 
 log = logging.getLogger(__name__)
 
@@ -25,10 +26,11 @@ def speakable(text: str) -> str:
 
 class VoiceSkill(Skill):
     name = "voice"
+    icon = "mic"
     description = "Read text aloud."
     keywords = r"\b(read (?:it |this |that )?(?:aloud|out)|say it|speak|stop (?:talking|reading))\b"
 
-    def __init__(self, ctx: Any, speaker: Any = None):
+    def __init__(self, ctx: Context, speaker: Any = None):
         super().__init__(ctx)
         self.speaker = speaker or Speaker()
 
@@ -42,9 +44,9 @@ class VoiceSkill(Skill):
     @tool("Read text aloud. Leave text empty to read the selected or copied text.", params={"text": "What to read"})
     def read_aloud(self, text: str = "") -> ToolResult:
         if not text.strip():
-            text = self.ctx.services.get("selection") or ""
+            text = self.ctx.host.selection
         if not text.strip():
-            clip = self.ctx.services.get("skills", {}).get("clipboard")
+            clip = self.ctx.skill("clipboard")
             if clip:
                 try:
                     text = clip.backend.get_text() or ""
