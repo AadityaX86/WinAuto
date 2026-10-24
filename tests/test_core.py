@@ -46,7 +46,11 @@ class Demo(Skill):
 
     @tool("Fails politely.")
     def nope(self, thing: str):
-        return fail(f"No {thing} here.")
+        return fail(f"No {thing} here.", fallback=True)
+
+    @tool("Fails for good.")
+    def broken_for_good(self):
+        return fail("Only works on Windows.")
 
     def preview(self, tool_name, args):
         if tool_name == "send":
@@ -55,6 +59,7 @@ class Demo(Skill):
 
     def quick_rules(self):
         return [QuickRule(r"greet (?P<who>\w+)", lambda m: ("greet", {"who": m["who"]})),
+                QuickRule(r"windows thing", lambda m: ("broken_for_good", {})),
                 QuickRule(r"find (?P<t>\w+)", lambda m: ("nope", {"thing": m["t"]}))]
 
 
@@ -106,6 +111,13 @@ def test_failed_quick_command_falls_back_to_model():
     agent, _ = make_agent(llm)
     reply = agent.handle("find keys")
     assert reply.used_model and reply.text == "I couldn't find it either."
+
+
+def test_failed_quick_command_without_fallback_stays_quick():
+    llm = ScriptedLLM("should not be asked")
+    agent, _ = make_agent(llm)
+    reply = agent.handle("windows thing")
+    assert reply.text == "Only works on Windows." and llm.calls == []
 
 
 def test_final_tool_ends_without_second_model_call():

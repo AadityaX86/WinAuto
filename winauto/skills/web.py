@@ -167,7 +167,7 @@ class WebSkill(Skill):
     def open_website(self, site: str) -> ToolResult:
         site = site.strip()
         url = self.site_url(site)
-        label = site
+        label = site[:1].upper() + site[1:] if url else site
         if url is None and looks_like_url(site):
             url = site if re.match(r"^https?://", site, re.I) else "https://" + site
         if url is None:

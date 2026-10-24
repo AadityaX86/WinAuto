@@ -239,7 +239,7 @@ class NotesSkill(Skill):
     def complete_todo(self, todo: str) -> ToolResult:
         row = self._find_todo(todo)
         if not row:
-            return fail(f"I couldn't find an open todo matching '{todo}'.")
+            return fail(f"I couldn't find an open todo matching '{todo}'.", fallback=True)
         if row["done"]:
             return ok(f"#{row['id']} {row['text']} was already done.")
         self.db.execute("UPDATE todos SET done = 1, done_at = ? WHERE id = ?", (now_iso(), row["id"]))

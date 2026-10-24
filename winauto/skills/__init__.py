@@ -16,6 +16,7 @@ BUILTIN: list[tuple[str, str]] = [
     ("notes", "NotesSkill"),
     ("web", "WebSkill"),
     ("utils", "UtilsSkill"),
+    ("system", "SystemSkill"),
 ]
 
 

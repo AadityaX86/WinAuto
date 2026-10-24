@@ -250,7 +250,7 @@ class AppsSkill(Skill):
             if entry is None:
                 tips = self.suggestions(name)
                 hint = f" Did you mean: {', '.join(tips)}?" if tips else ""
-                return fail(f"I couldn't find an app called '{name}'.{hint}", data={"suggestions": tips})
+                return fail(f"I couldn't find an app called '{name}'.{hint}", data={"suggestions": tips}, fallback=True)
             running = [] if entry.kind == "uri" else self.find_windows(entry.name)
             if running and self.backend.focus(running[0].hwnd):
                 return ok(f"Switched to {entry.name}.")
@@ -277,7 +277,7 @@ class AppsSkill(Skill):
                         f"{label} is running in the background with no open window. "
                         f"Say 'force close {name}' to end it.",
                     )
-                return fail(f"{label} doesn't seem to be open.")
+                return fail(f"{label} doesn't seem to be open.", fallback=True)
             for w in windows:
                 self.backend.close_window(w.hwnd)
             deadline = time.time() + 3
@@ -336,7 +336,7 @@ class AppsSkill(Skill):
         try:
             windows = self.find_windows(name)
             if not windows:
-                return fail(f"{name} isn't open.")
+                return fail(f"{name} isn't open.", fallback=True)
             if self.backend.focus(windows[0].hwnd):
                 return ok(f"Switched to {windows[0].title}.")
             return fail(f"Windows wouldn't let me switch to {name}.")

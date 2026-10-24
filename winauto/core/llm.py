@@ -220,6 +220,11 @@ class OllamaClient:
                 raise LLMError(
                     f"The model '{self.model}' isn't downloaded. Run: ollama pull {self.model}"
                 ) from exc
+            elif "can't reach" in text:
+                raise LLMError(
+                    "The AI model isn't running. Start Ollama (or run 'ollama serve'), then try again. "
+                    "Quick commands like 'open notepad' still work."
+                ) from exc
             elif "does not support tools" in text:
                 raise LLMError(
                     f"The model '{self.model}' can't use tools. Pick one that can, e.g. qwen3:8b or llama3.1:8b."

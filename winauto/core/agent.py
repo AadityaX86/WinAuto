@@ -144,10 +144,10 @@ class Agent:
                 log.info("Quick command: %s %s", call.name, call.arguments)
                 result = self.run_tool(call)
                 step = Step(call.name, call.arguments, result)
-                # A failed quick command (e.g. no app by that name) gets a second
-                # chance with the model, which may know what was meant.
-                if result.ok or result.cancelled or self.llm is None:
-                    return AgentReply(result.message, [step])
+                # A quick command that couldn't find its target (e.g. no app by that
+                # name) gets a second chance with the model, which may know what was meant.
+                if not (result.fallback and self.llm is not None):
+                    return AgentReply(result.message, [step], error=None if result.ok or result.cancelled else "tool")
         if self.llm is None:
             return AgentReply(
                 "The AI model isn't set up yet, so I can only do quick commands like "

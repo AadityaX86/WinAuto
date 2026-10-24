@@ -30,6 +30,9 @@ class ToolResult:
     message: str  # human-readable; shown to the user
     data: Any = None  # extra detail for the model
     cancelled: bool = False
+    # For quick commands: True means "I couldn't find what you meant", so the
+    # AI model gets a go at the request instead.
+    fallback: bool = False
 
     def for_model(self, limit: int = 6000) -> str:
         payload: dict[str, Any] = {"ok": self.ok, "message": self.message}
@@ -47,8 +50,8 @@ def ok(message: str, data: Any = None) -> ToolResult:
     return ToolResult(True, message, data)
 
 
-def fail(message: str, data: Any = None) -> ToolResult:
-    return ToolResult(False, message, data)
+def fail(message: str, data: Any = None, fallback: bool = False) -> ToolResult:
+    return ToolResult(False, message, data, fallback=fallback)
 
 
 class ArgumentError(ValueError):
