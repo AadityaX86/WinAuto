@@ -17,6 +17,30 @@ from winauto.paths import data_dir
 class SettingsService:
     version = __version__
 
+    def __init__(self, ai_setup: Any = None):
+        self.ai_setup = ai_setup  # services.ai_setup.AISetup, when the app has one
+
+    # ----- built-in AI -----
+
+    def builtin_models(self) -> list[tuple[str, str]]:
+        """(model id, label) for each built-in model, with size and whether it's downloaded."""
+        if self.ai_setup is not None:
+            return [(c.model.id, c.label) for c in self.ai_setup.choices()]
+        from winauto.adapters.local_ai import catalog
+        from winauto.adapters.local_ai.manager import gb
+
+        return [(m.id, f"{m.name} · {gb(m.size)}") for m in catalog.MODELS]
+
+    def builtin_default(self) -> str:
+        if self.ai_setup is not None:
+            return self.ai_setup.recommended().id
+        from winauto.adapters.local_ai import catalog
+
+        return catalog.DEFAULT_MODEL
+
+    def hardware(self) -> str:
+        return self.ai_setup.hardware() if self.ai_setup is not None else ""
+
     @property
     def data_dir(self) -> Path:
         return data_dir()
@@ -29,6 +53,14 @@ class SettingsService:
 
     def check_model(self, llm: Any) -> tuple[bool, str]:
         """Can we reach the server, and is the model there? (ok, message for the user)."""
+        if llm.backend == "builtin":
+            if self.ai_setup is None:
+                return False, "The built-in AI is set up when WinAuto starts."
+            ai = self.ai_setup.ai
+            if llm.builtin_model and llm.builtin_model != ai.model.id:
+                return True, "Save to download and use this model."
+            status = ai.status()
+            return ai.installed(), status.message
         return make_client(llm).check()
 
     # ----- Gmail -----

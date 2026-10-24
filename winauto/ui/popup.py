@@ -64,6 +64,7 @@ class PopupWindow(QWidget):
     new_chat_requested = Signal()
     settings_requested = Signal()
     mic_requested = Signal()
+    setup_action = Signal(str)  # built-in AI card: "pause", "resume", "retry" or "dismiss"
 
     def __init__(self, palette: Palette):
         super().__init__(None)
@@ -124,6 +125,8 @@ class PopupWindow(QWidget):
         # Pages
         self.stack = QStackedWidget()
         self.home = HomeView(palette)
+        self.home.setup.action.connect(self.setup_action.emit)
+        self.home.setup.dismissed.connect(lambda: self.setup_action.emit("dismiss"))
         self.home.list.chosen.connect(self.suggestion_chosen.emit)
         self.results = ResultList(palette)
         self.results.chosen.connect(self.suggestion_chosen.emit)
@@ -401,6 +404,12 @@ class PopupWindow(QWidget):
         self.status_dot.setToolTip({None: "Checking the AI model…", True: "AI model ready", False: "AI model not available"}[ok])
         if not self._busy:
             self.status.setText(self._model_label)
+
+    def show_setup(self, view) -> None:
+        """Show the built-in AI's progress (a services.ai_setup.SetupView)."""
+        self.home.setup.show_view(view)
+        if view.dot_label:
+            self.set_model_status(view.dot, view.dot_label)
 
     def flash(self, text: str, ms: int = 1600) -> None:
         self.toast.setText(text)

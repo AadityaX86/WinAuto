@@ -2,18 +2,28 @@
 
 ## First steps
 
-1. **Check the status dot** at the bottom left of the popup: green means the AI model is ready, grey means it's still checking, and a message in the chat explains anything else.
+1. **Check the status dot** at the bottom left of the popup: green means the AI is ready, grey means it's downloading or loading, red means there's a problem (the card on the home screen or a message in the chat explains it).
 2. **Look at the log:** tray icon → **Open log file**. The last lines usually say what went wrong.
 3. **Run the self-test:** `WinAuto.exe --selftest` (or `python -m winauto --selftest`). It checks every skill, the database, Windows features, Credential Manager and the popup, and writes a report to your temp folder.
 
-## The AI model
+## The built-in AI
+
+| Problem | Fix |
+|---|---|
+| The download is slow or stopped | Press **Pause**, then **Continue**: it picks up where it stopped. A restart of WinAuto does too. Downloads come from Hugging Face (the model) and GitHub (the engine); a VPN or firewall that blocks those sites stops it. |
+| "Not enough free disk space" | The standard model needs about 6 GB on the drive with your user profile (usually C:). Free some space and press **Try again**, or choose the small model (3 GB) in Settings → AI model. |
+| "The downloaded file was damaged" | Press **Try again**. If it keeps happening, something on your network is changing downloads (some antivirus "web shields" do); pause it while WinAuto downloads. |
+| "The AI couldn't be set up" / "couldn't start" | Update your graphics drivers, then press **Try again**. The details are in `%LOCALAPPDATA%\WinAuto\ai\logs\engine.log`. If the graphics card can't be used, WinAuto falls back to the processor by itself. |
+| Antivirus quarantined `llama-server.exe` | It's llama.cpp's open-source engine. Restore it and add an exception for `%LOCALAPPDATA%\WinAuto\ai`, or delete that folder so WinAuto downloads it again. |
+| Answers are slow | The first answer after starting takes a few seconds while the model loads. If every answer is slow, your graphics card may be too small for the model: switch to the small one in Settings → AI model, and close games or video editors. |
+| The AI does the wrong thing or says it can't | Be specific ("email Ram…" rather than "tell Ram…" if you mean email). Start a new chat (**＋**) if an earlier conversation confuses it. |
+
+## Ollama or another server
 
 | Problem | Fix |
 |---|---|
 | "Ollama isn't running" | Start Ollama from the Start menu, or run `ollama serve` in Command Prompt. WinAuto tries to start it for you. |
 | "The model … isn't downloaded" | Run `ollama pull qwen3:8b` (or the model named in Settings → AI model). |
-| Answers are slow | The first request after a break loads the model (5–20 s). After that, try a smaller model, close GPU-heavy apps, or turn off skills you don't use. See [AI models](ai-models.md#speed-tips). |
-| The AI does the wrong thing or says it can't | Be specific ("email Ram…" rather than "tell Ram…" if you mean email). Try a larger model if your card allows. Start a new chat (**＋**) if an earlier conversation confuses it. |
 | "What's on my screen" says the model isn't downloaded | Run `ollama pull qwen2.5vl:7b`, or choose another vision model in Settings → AI model. |
 | LM Studio / other server doesn't connect | Check the address ends in `/v1` and a model is loaded; press **Test connection**. |
 

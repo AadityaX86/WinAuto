@@ -4,6 +4,20 @@ All notable changes to WinAuto. Dates are when the change reached `main`.
 
 ## Unreleased
 
+## 0.2.0 (2026-10-24)
+
+### Nothing else to install
+- **Built-in AI.** WinAuto now runs its own AI engine (llama.cpp) with a Qwen3-VL model, so Ollama is no longer needed. Download WinAuto, run it, done.
+- On first run WinAuto checks your graphics card and downloads the right model once: **Qwen3-VL 8B** (5.8 GB) for 8 GB cards and up, **Qwen3-VL 4B** (3.0 GB) otherwise. A card on the home screen shows progress, speed and time left, with Pause and Continue. Downloads resume after a restart and are checked against pinned checksums.
+- One model does chat, tools and screenshots, so "what's on my screen?" works without a separate vision model.
+- Uses NVIDIA, AMD and Intel graphics cards through Vulkan, and falls back to the processor when it has to. The engine listens only on this PC, with a random key, and stops with WinAuto (even after a crash).
+- Settings → AI model: choose **Built-in (recommended)**, Ollama or an OpenAI-compatible server; switch between the standard and small model.
+- Upgrading from 0.1: if Ollama is installed and running, WinAuto keeps using it; otherwise it switches to the built-in AI.
+
+### Under the hood
+- `adapters/local_ai` (pinned catalog, resumable verified downloads, engine process), `services/ai_setup.py` (first-run setup), `ui/setup.py` (progress card).
+- CI downloads the real engine and a small model and makes a real tool call on Windows and Linux on every run.
+
 ## 0.1.0 (2026-10-24)
 
 The first version: a private assistant and launcher for Windows that runs on a local AI model.

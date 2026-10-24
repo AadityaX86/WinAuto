@@ -72,6 +72,7 @@ def main(argv: list[str] | None = None) -> int:
     from winauto.adapters.winos.startup import set_start_with_windows
     from winauto.config import load_config
     from winauto.runtime import Runtime
+    from winauto.services.settings import SettingsService
     from winauto.ui.async_util import run_async
     from winauto.ui.controller import Controller, QtConfirmer
     from winauto.ui.popup import PopupWindow
@@ -80,6 +81,7 @@ def main(argv: list[str] | None = None) -> int:
     from winauto.ui.tray import Tray, pretty_hotkey
 
     config = load_config()
+    _upgrade_settings(config)
     icon = app_icon()
     app.setWindowIcon(icon)
     app.setFont(base_font())
@@ -192,12 +194,16 @@ def main(argv: list[str] | None = None) -> int:
 
     def open_settings() -> None:
         skills = [(s.name, s.description, s.icon) for s in runtime.registry.skills]
-        dialog = SettingsDialog(runtime.config, popup if popup.isVisible() else None, skills=skills, palette=pal)
+        dialog = SettingsDialog(runtime.config, popup if popup.isVisible() else None, skills=skills, palette=pal,
+                                service=SettingsService(runtime.ai_setup))
         state["settings"] = dialog
 
         def saved(cfg) -> None:
             hotkeys_changed = (cfg.hotkey, cfg.text_hotkey) != (runtime.config.hotkey, runtime.config.text_hotkey)
+            ai_changed = (cfg.llm.backend, cfg.llm.builtin_model) != (runtime.config.llm.backend, runtime.config.llm.builtin_model)
             runtime.apply_config(cfg)
+            if ai_changed and runtime.ai_setup.needed():
+                runtime.ai_setup.start(user_asked=True)  # they picked a model: download it now
             controller.attach(runtime)
             try:
                 set_start_with_windows(cfg.start_with_windows)
@@ -215,6 +221,15 @@ def main(argv: list[str] | None = None) -> int:
     popup.settings_requested.connect(open_settings)
 
     def check_model(try_start: bool = True) -> None:
+        popup.show_setup(runtime.ai_setup.view())  # hides the built-in AI card when it's not in use
+        if runtime.config.llm.backend == "builtin":
+            # WinAuto's own AI: download it on first run, otherwise load it in the background.
+            setup = runtime.ai_setup
+            if setup.needed():
+                setup.start()
+            else:
+                run_async(setup.load, lambda result, error: None)
+            return
         popup.set_model_status(None, runtime.llm.model)
 
         def done(result, error) -> None:
@@ -263,6 +278,21 @@ def main(argv: list[str] | None = None) -> int:
         listener.stop()
     runtime.stop()
     return code
+
+
+def _upgrade_settings(config) -> None:
+    """Settings from WinAuto 0.1 only knew Ollama: keep it if it's running, else use the built-in AI."""
+    from winauto.adapters.llm import OllamaClient
+    from winauto.config import save_config
+    from winauto.services.ai_setup import upgrade_config
+
+    def ollama_ready() -> bool:
+        ok, _ = OllamaClient(base_url=config.llm.base_url, model=config.llm.model).check()
+        return ok
+
+    if upgrade_config(config, ollama_ready):
+        log.info("Settings upgraded; AI backend: %s", config.llm.backend)
+        save_config(config)
 
 
 if __name__ == "__main__":

@@ -1,33 +1,14 @@
 # Getting started
 
-Set up WinAuto in about 15 minutes, most of it waiting for the AI model to download.
+Download WinAuto, run it, and it sets up its own AI. There's nothing else to install.
 
 ## What you need
 
 - **Windows 10 or 11.**
-- **A graphics card with 6 GB of memory or more** for a smooth experience (NVIDIA, AMD or Intel Arc). WinAuto works on a CPU too, just slower. Instant commands like "open spotify" don't need the AI at all.
-- **About 6 GB of free disk space** for the default model.
+- **About 8 GB of free disk space** for the AI model, which WinAuto downloads once on first run (3–6 GB depending on your PC).
+- **A graphics card with 6 GB of memory or more** for quick answers (NVIDIA, AMD or Intel). Without one the AI runs on the processor: it works, just more slowly. Instant commands like "open spotify" don't need the AI at all.
 
-## 1. Install the AI model (Ollama)
-
-WinAuto's AI runs on your own PC through [Ollama](https://ollama.com).
-
-1. Download and install Ollama from **https://ollama.com/download**.
-2. Open **Command Prompt** and download the default model:
-
-   ```
-   ollama pull qwen3:8b
-   ```
-
-3. Optional, for questions about your screen:
-
-   ```
-   ollama pull qwen2.5vl:7b
-   ```
-
-Ollama starts with Windows and runs in the background. Have a bigger or smaller graphics card? See [AI models](ai-models.md) for which model to pick.
-
-## 2. Get WinAuto
+## 1. Get WinAuto
 
 ### Option A: download the app (no Python needed)
 
@@ -51,17 +32,21 @@ pip install -e .
 python -m winauto
 ```
 
-## 3. First run
+## 2. First run: WinAuto sets up its AI
 
 WinAuto opens with a short welcome message and puts an icon in the system tray (bottom right, near the clock; it may be under the **^** arrow).
+
+On the home screen a card shows WinAuto **downloading its AI** (only this once). It picks the model that suits your graphics card: **Qwen3-VL 8B** (5.8 GB) for 8 GB cards and up, otherwise **Qwen3-VL 4B** (3.0 GB). Both chat, use WinAuto's tools and understand screenshots. The card shows progress and time left. **Pause** stops it, and it continues where it left off, even after a restart. Instant commands work while it downloads. When it's done the AI loads and the dot at the bottom left turns green.
+
+![Downloading the AI](images/setup.png)
+
+Prefer Ollama or another AI server you already use? Choose it in **Settings → AI model** ([details](ai-models.md#using-ollama-instead)).
 
 - **Ctrl+Alt+Space** opens and closes WinAuto from any app.
 - **Ctrl+Alt+T** opens writing tools for text you've selected in any app.
 - The tray icon's menu has Settings, the data folder, the log file and Quit.
 
-The dot at the bottom left of the popup turns green when the AI model is ready. If Ollama isn't running, WinAuto tries to start it, and tells you what to do if it can't.
-
-## 4. Try it
+## 3. Try it
 
 Press **Ctrl+Alt+Space** and type:
 
@@ -75,12 +60,12 @@ Press **Ctrl+Alt+Space** and type:
 | `who won the last football world cup?` | The AI searches the web and answers |
 | select text in any app, then **Ctrl+Alt+T** | Fix grammar, rewrite, translate, summarize |
 
-## 5. Make it yours
+## 4. Make it yours
 
 Open **Settings** (the sliders button in the popup, or the tray menu):
 
 - **General:** your name (used when writing emails), your city for weather, the theme, **Start with Windows**.
-- **AI model:** pick a different model (**Find installed** lists what Ollama has), then **Test connection**.
+- **AI model:** switch between the standard and small built-in model, or use Ollama instead.
 - **Accounts:** Gmail, WhatsApp country code and calendar links ([how](connect-accounts.md)).
 - **Skills:** turn off anything you don't need.
 

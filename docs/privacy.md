@@ -4,7 +4,7 @@ WinAuto is built to keep your requests and data on your PC.
 
 ## What stays on your PC
 
-- **Your requests and the AI's answers.** The model runs locally in Ollama (or another server you choose). Nothing is sent to an AI company.
+- **Your requests and the AI's answers.** The model runs on your PC in WinAuto's built-in engine (or Ollama, or another server you choose). Nothing is sent to an AI company. The built-in engine only accepts connections from this PC, with a new random key each time it starts.
 - **Your notes, todos, contacts, reminders, routines, calendar events, memories and command history.** These live in `winauto.db` in `%APPDATA%\WinAuto`.
 - **Screenshots** for "what's on my screen". They go only to your local vision model and are never saved to disk.
 - **Clipboard history.** It's kept in memory and disappears when WinAuto quits.
@@ -16,6 +16,7 @@ Only the words you look up are sent:
 
 | When you… | WinAuto contacts |
 |---|---|
+| Start WinAuto for the first time (once) | GitHub, to download the AI engine (llama.cpp), and Hugging Face, to download the AI model. Nothing about you is sent; the files are checked against pinned checksums. |
 | Ask something that needs a web search | DuckDuckGo |
 | Ask about the weather (also the home screen card, at most hourly) | wttr.in |
 | Convert currencies | open.er-api.com |

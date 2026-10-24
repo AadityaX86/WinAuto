@@ -10,7 +10,10 @@ import logging
 from typing import Callable
 
 from winauto.adapters.llm import make_client
+from winauto.adapters.local_ai import catalog
+from winauto.adapters.local_ai.manager import LocalAI
 from winauto.adapters.storage.db import Database
+from winauto.adapters.winos.jobs import kill_with_parent
 from winauto.config import Config, load_config, save_config
 from winauto.core.agent import Agent, Confirmer
 from winauto.core.context import Context
@@ -18,7 +21,8 @@ from winauto.core.launcher import Launcher
 from winauto.core.llm import LLMClient, ToolCall
 from winauto.core.quick import QuickMatcher
 from winauto.core.skill import ToolResult
-from winauto.paths import data_dir, db_path
+from winauto.paths import ai_dir, data_dir, db_path
+from winauto.services.ai_setup import AISetup
 from winauto.services.home import HomeService
 from winauto.services.voice import VoiceService
 from winauto.services.writing import WritingTools
@@ -44,7 +48,10 @@ class Runtime:
             self.ctx.notify = notify
         self.registry = build_registry(self.ctx)
         self.ctx.skills = {s.name: s for s in self.registry.skills}
-        self.llm = llm or make_client(self.config.llm)
+        # The built-in AI (engine + model in %LOCALAPPDATA%); idle until it's needed.
+        self.local_ai = LocalAI(ai_dir(), self.config.llm.builtin_model or catalog.DEFAULT_MODEL,
+                                on_server_started=kill_with_parent)
+        self.llm = llm or make_client(self.config.llm, self.local_ai)
         self.agent = Agent(
             self.registry,
             self.llm,
@@ -62,6 +69,7 @@ class Runtime:
         self.home = HomeService(self.ctx, self.registry)
         self.writing = WritingTools(self.ctx)
         self.voice = VoiceService(self.ctx)
+        self.ai_setup = AISetup(self.local_ai, lambda: self.config, self.apply_config, store=self.db)
 
     # ----- Assistant port (used by skills through ctx.assistant) -----
 
@@ -96,6 +104,7 @@ class Runtime:
                 skill.stop()
             except Exception:
                 log.exception("Skill %s failed to stop", skill.name)
+        self.local_ai.stop()
         self.db.close()
 
     def apply_config(self, cfg: Config) -> None:
@@ -103,7 +112,11 @@ class Runtime:
         save_config(cfg)
         self.config = cfg
         self.ctx.config = cfg
-        self.llm = make_client(cfg.llm)
+        if cfg.llm.builtin_model:
+            self.local_ai.set_model(cfg.llm.builtin_model)
+        if cfg.llm.backend != "builtin":
+            self.local_ai.stop()  # free the graphics card for Ollama or another server
+        self.llm = make_client(cfg.llm, self.local_ai)
         self.agent.llm = self.llm
         self.agent.quick = QuickMatcher(self.registry) if cfg.use_quick_commands else None
         self.agent.history_turns = cfg.history_turns

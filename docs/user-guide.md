@@ -140,7 +140,7 @@ The same actions work on what you copied: `fix the grammar`, `summarize this`, `
 | `read the text on my screen` | Copies all readable text (like OCR) |
 | `what's in C:\Users\you\Pictures\receipt.jpg?` (**AI**) | Questions about an image file |
 
-This needs a vision model; see [AI models](ai-models.md#vision-models). Screenshots are not saved.
+The built-in AI understands screenshots out of the box (with Ollama you need a vision model; see [AI models](ai-models.md#using-ollama-instead)). Screenshots are not saved.
 
 ### Memory
 

@@ -70,6 +70,7 @@ class Controller(QObject):
     status_changed = Signal(str)
     token = Signal(str)
     home_data = Signal(object)
+    setup_status = Signal(object)  # built-in AI status, from any thread
 
     def __init__(self, popup: PopupWindow, confirmer: QtConfirmer):
         super().__init__()
@@ -101,6 +102,9 @@ class Controller(QObject):
         self.status_changed.connect(popup.set_status)
         self.token.connect(popup.stream_token)
         self.home_data.connect(self._apply_home_data)
+        self.setup_status.connect(self._show_setup)
+        popup.setup_action.connect(self.setup_action)
+        self._setup_source = None
 
     # ----- wiring helpers -----
 
@@ -108,7 +112,32 @@ class Controller(QObject):
         self.runtime = runtime
         if getattr(runtime.config.llm, "stream", True):
             runtime.agent.on_token = self.token.emit
+        setup = getattr(runtime, "ai_setup", None)
+        if setup is not None and setup is not self._setup_source:
+            setup.subscribe(self.setup_status.emit)
+            self._setup_source = setup
         self.refresh_home()
+
+    # ----- built-in AI setup -----
+
+    def _show_setup(self, status=None) -> None:
+        setup = getattr(self.runtime, "ai_setup", None)
+        if setup is not None:
+            self.popup.show_setup(setup.view(status))
+
+    def setup_action(self, action: str) -> None:
+        setup = getattr(self.runtime, "ai_setup", None)
+        if setup is None:
+            return
+        if action == "pause":
+            setup.pause()
+        elif action == "resume":
+            setup.start(user_asked=True)
+        elif action == "retry":
+            setup.retry()
+        elif action == "dismiss":
+            setup.dismiss()
+        self._show_setup()
 
     def on_status(self, text: str) -> None:
         """Agent status callback (any thread)."""
@@ -320,6 +349,7 @@ class Controller(QObject):
         if self.runtime is None:
             return
         home = self.runtime.home
+        self._show_setup()
         self.popup.home.refresh_greeting(home.user_name)
         self.popup.home.set_lists(home.suggestions(), home.recent())
         threading.Thread(target=self._collect_home_data, daemon=True, name="home").start()

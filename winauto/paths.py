@@ -36,3 +36,20 @@ def log_dir() -> Path:
     path = data_dir() / "logs"
     path.mkdir(parents=True, exist_ok=True)
     return path
+
+
+def ai_dir() -> Path:
+    """Folder for the built-in AI's engine and model files (several GB).
+
+    Windows: %LOCALAPPDATA%\\WinAuto\\ai (big files don't belong in the roaming
+    profile). Elsewhere: <data folder>/ai. WINAUTO_HOME overrides both.
+    """
+    override = os.environ.get("WINAUTO_HOME")
+    if override:
+        path = Path(override) / "ai"
+    elif sys.platform == "win32":
+        path = Path(os.environ.get("LOCALAPPDATA", Path.home() / "AppData" / "Local")) / "WinAuto" / "ai"
+    else:
+        path = data_dir() / "ai"
+    path.mkdir(parents=True, exist_ok=True)
+    return path

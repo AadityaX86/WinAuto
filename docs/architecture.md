@@ -23,8 +23,8 @@ Arrows point the way imports go. `core/` is in the middle and imports nothing bu
 |---|---|---|
 | `winauto/core/` | The engine and the contracts: `Skill`, `@tool`, `ToolResult`, `Suggestion`, `QuickRule`, `Widget`, the agent loop, tool registry, launcher ranking, quick-command matching, fuzzy matching, time parsing, and the **ports** (`Context`, `Store`, `Assistant`, `Host`, `LLMClient`). Plain Python. | `config` |
 | `winauto/skills/` | Features. One module per skill (apps, notes, email…). Code more than one skill needs lives in `skills/shared/`. | `core`, `config`, `adapters`, `skills.shared` |
-| `winauto/adapters/` | Everything that talks to the outside world: `winos/` (Windows APIs via ctypes, registry, PowerShell, SendInput), `storage/` (SQLite and migrations), `llm/` (Ollama and OpenAI-compatible clients), `http.py`, `gmail.py`, `secrets.py` (Credential Manager), `sysinfo.py` (psutil, sockets). | `core`, `config`, `paths`, `log` |
-| `winauto/services/` | Application logic the UI needs: the home screen (`home.py`), command history, writing tools, voice, and the checks behind Settings. | `core`, `config`, `adapters`, `paths` |
+| `winauto/adapters/` | Everything that talks to the outside world: `winos/` (Windows APIs via ctypes, registry, PowerShell, SendInput), `storage/` (SQLite and migrations), `llm/` (built-in, Ollama and OpenAI-compatible clients), `local_ai/` (the built-in AI: pinned downloads, the llama.cpp server process), `http.py`, `gmail.py`, `secrets.py` (Credential Manager), `sysinfo.py` (psutil, sockets). | `core`, `config`, `paths`, `log` |
+| `winauto/services/` | Application logic the UI needs: the home screen (`home.py`), command history, writing tools, voice, setting up the built-in AI (`ai_setup.py`), and the checks behind Settings. | `core`, `config`, `adapters`, `paths` |
 | `winauto/ui/` | Qt windows and widgets: the popup and its views (`popup.py`, `chat.py`, `home.py`, `cards.py`, `textmode.py`), Settings, tray, theme and icons, and the `Controller` that connects the popup to the app. | `core`, `config`, `services` |
 | `config.py`, `paths.py`, `log.py` | Settings model (dataclasses, saved as JSON), file locations, logging. | each other |
 | `runtime.py`, `app.py`, `cli.py`, `selftest.py` | **Composition roots.** They build the objects and plug adapters into ports. Nothing imports them. | anything |
@@ -111,6 +111,26 @@ Local models get slower and less accurate with many tools. For each request the 
 3. otherwise offers everything.
 
 Small models sometimes write tool calls as text instead of using the API; `core/llm.py` recognises those (`extract_text_tool_calls`) and `TokenGate` keeps them out of the streamed answer.
+
+## The built-in AI
+
+WinAuto ships without a model and gets one on first run, so users install nothing else:
+
+```
+app.py ──► AISetup (services/ai_setup.py) ── picks a model for the GPU, runs the download thread,
+              │                                turns status into a SetupView for the popup card
+              ▼
+           LocalAI (adapters/local_ai/manager.py) ── engine + model files in %LOCALAPPDATA%\WinAuto\ai
+              │   catalog.py   pinned URLs, sizes, SHA-256 (llama.cpp build, Qwen3-VL GGUF files)
+              │   download.py  resumable, verified downloads
+              │   server.py    llama-server on 127.0.0.1, random API key, GPU via --fit, CPU fallback
+              ▼
+           BuiltinClient (adapters/llm/builtin.py) ── the agent's LLMClient; starts the engine when needed
+```
+
+- `Runtime` owns the `LocalAI` and stops it on quit; `adapters/winos/jobs.py` puts the engine in a Windows Job Object so it can't outlive WinAuto.
+- Status flows one way: `LocalAI` → listeners → `AISetup.view()` → `Controller.setup_status` (Qt signal) → `ui/setup.py`. The UI never sees engine states, only the view.
+- `tests/test_local_ai.py` covers downloads, installs and the setup flow with fakes. `tests/test_engine_live.py` (CI only) downloads the real engine and a tiny model and makes a real tool call on Windows and Linux.
 
 ## Storage
 

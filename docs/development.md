@@ -63,6 +63,8 @@ What the suite covers:
 | `test_ui.py` | The real Qt popup, controller and settings, run offscreen |
 | `test_services.py` | Home screen, history, writing tools, voice, settings checks, context ports |
 | `test_windows_live.py` | Real Windows API calls (skipped elsewhere; runs on Windows CI) |
+| `test_local_ai.py` | Built-in AI: downloads, install, engine start and CPU fallback, first-run setup (with fakes) |
+| `test_engine_live.py` | The real engine and a small model, end to end (only with `WINAUTO_ENGINE_TEST=1`; downloads about 700 MB) |
 | `test_architecture.py` | Layer rules and skill registration (see [Architecture](architecture.md)) |
 | `test_docs.py` | The skills reference is current, doc links work, the guide's example skill runs |
 
@@ -97,7 +99,7 @@ dist\WinAuto\WinAuto.exe --selftest
 
 `.github/workflows/ci.yml` runs on every push and pull request:
 
-1. **Tests** on Ubuntu (with lint) and Windows.
+1. **Tests** on Ubuntu (with lint) and Windows, and **Built-in AI**: the real llama.cpp engine and a small model downloaded (cached between runs), started, and asked to call a tool, on Windows and Linux.
 2. **Build WinAuto.exe** on Windows, then run the packaged app's `--selftest` (it must finish within 3 minutes and report OK).
 3. **Upload** the `WinAuto-windows` artifact (kept 30 days).
 

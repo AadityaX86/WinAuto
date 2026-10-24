@@ -58,6 +58,9 @@ def strip_thinking(text: str) -> str:
     # An unclosed <think> means the model ran out of room while thinking.
     if "<think>" in text.lower():
         text = text[: text.lower().index("<think>")]
+    # Some chat templates put <think> in the prompt, so only the closing tag shows up.
+    if "</think>" in text.lower():
+        text = text[text.lower().rindex("</think>") + len("</think>"):]
     return text.strip()
 
 
