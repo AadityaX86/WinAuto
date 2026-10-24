@@ -12,14 +12,19 @@ jobs:
   lookup:
     runs-on: ubuntu-latest
     steps:
-      - name: llama.cpp latest release
+      - name: llama.cpp recent releases and their Windows/Linux files
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh api repos/ggml-org/llama.cpp/releases/latest --jq '.tag_name, .published_at, (.assets[] | select(.name | test("win|ubuntu")) | "\(.size) \(.name) \(.digest)")'
-      - name: Model files on Hugging Face
+          echo "--- latest release: all assets"
+          gh api repos/ggml-org/llama.cpp/releases/latest --jq '.tag_name, .name, (.assets[] | "\(.size) \(.name)")'
+          echo "--- 15 most recent releases"
+          gh api "repos/ggml-org/llama.cpp/releases?per_page=15" --jq '.[] | "\(.tag_name) \(.published_at) prerelease=\(.prerelease) assets=\(.assets | length)"'
+          echo "--- newest release with a Windows Vulkan build"
+          gh api "repos/ggml-org/llama.cpp/releases?per_page=40" --jq '[.[] | select(any(.assets[]; .name | test("win.*vulkan")))][0] | .tag_name, .published_at, (.assets[] | select(.name | test("win|ubuntu|linux")) | "\(.size) \(.name) \(.digest)")'
+      - name: Vision-capable Qwen3 models
         run: |
-          for repo in Qwen/Qwen3-4B-GGUF Qwen/Qwen3-8B-GGUF Qwen/Qwen3-14B-GGUF unsloth/Qwen3-4B-Instruct-2507-GGUF unsloth/Qwen3-8B-GGUF ggml-org/Qwen2.5-VL-7B-Instruct-GGUF ggml-org/Qwen2.5-VL-3B-Instruct-GGUF ggml-org/gemma-3-4b-it-GGUF Qwen/Qwen3-0.6B-GGUF ggml-org/Qwen3-0.6B-GGUF; do
+          for repo in Qwen/Qwen3-VL-8B-Instruct-GGUF Qwen/Qwen3-VL-4B-Instruct-GGUF ggml-org/Qwen3-VL-8B-Instruct-GGUF ggml-org/Qwen3-VL-4B-Instruct-GGUF unsloth/Qwen3-VL-8B-Instruct-GGUF unsloth/Qwen3-VL-4B-Instruct-GGUF ggml-org/Qwen3-4B-Instruct-2507-GGUF Qwen/Qwen3-4B-Instruct-2507-GGUF; do
             echo "=== $repo"
             curl -s "https://huggingface.co/api/models/$repo/tree/main" | python3 -c "
           import sys, json
@@ -30,7 +35,7 @@ jobs:
           if isinstance(items, dict):
               print('  ', items); sys.exit()
           for f in items:
-              if f['path'].endswith('.gguf') and any(q in f['path'] for q in ('Q4_K_M', 'Q8_0', 'mmproj', 'f16')):
+              if f['path'].endswith('.gguf') and any(q in f['path'] for q in ('Q4_K_M', 'Q8_0', 'mmproj')):
                   lfs = f.get('lfs') or {}
                   print(f\"  {f['size']:>12} {f['path']} sha256={lfs.get('oid', '?')}\")
           "
@@ -44,9 +49,9 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $tag = gh api repos/ggml-org/llama.cpp/releases/latest --jq .tag_name
+          $tag = gh api "repos/ggml-org/llama.cpp/releases?per_page=40" --jq '[.[] | select(any(.assets[]; .name | test("win.*vulkan")))][0].tag_name'
           Write-Host "tag $tag"
-          gh release download $tag -R ggml-org/llama.cpp -p "*bin-win-vulkan-x64.zip" -p "*bin-win-cpu-x64.zip" -D dl
+          gh release download $tag -R ggml-org/llama.cpp -p "*win*vulkan*x64*.zip" -p "*win*cpu*x64*.zip" -D dl
           Get-ChildItem dl | ForEach-Object { "{0} {1}" -f $_.Length, $_.Name }
           Expand-Archive (Get-ChildItem dl\*vulkan*.zip).FullName -DestinationPath vk
           Expand-Archive (Get-ChildItem dl\*cpu*.zip).FullName -DestinationPath cpu
