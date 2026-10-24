@@ -90,6 +90,19 @@ MIGRATIONS: list[str] = [
         created_at TEXT NOT NULL
     );
     """,
+    # 5: local calendar events
+    """
+    CREATE TABLE events (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT NOT NULL,
+        start_at TEXT NOT NULL,
+        end_at TEXT NOT NULL,
+        all_day INTEGER NOT NULL DEFAULT 0,
+        location TEXT NOT NULL DEFAULT '',
+        created_at TEXT NOT NULL
+    );
+    CREATE INDEX events_start ON events(start_at);
+    """,
 ]
 
 

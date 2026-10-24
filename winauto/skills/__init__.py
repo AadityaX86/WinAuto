@@ -32,6 +32,11 @@ BUILTIN: list[tuple[str, str]] = [
     ("memory", "MemorySkill"),
     ("textactions", "TextActionsSkill"),
     ("vision", "VisionSkill"),
+    ("info", "InfoSkill"),
+    ("calendar", "CalendarSkill"),
+    ("briefing", "BriefingSkill"),
+    ("focus", "FocusSkill"),
+    ("voice", "VoiceSkill"),
 ]
 
 

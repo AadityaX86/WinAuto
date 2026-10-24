@@ -62,6 +62,11 @@ class Config:
     use_quick_commands: bool = True
     weather_location: str = ""
     music_service: str = "youtube"  # youtube or spotify
+    # Private iCal links (Google Calendar: Settings → your calendar → "Secret address in iCal format").
+    calendar_urls: list[str] = field(default_factory=list)
+    morning_briefing: bool = True  # show the daily briefing the first time you open WinAuto each morning
+    speak_replies: bool = False  # read answers aloud
+    focus_block_apps: list[str] = field(default_factory=lambda: ["discord", "steam", "whatsapp", "telegram"])
     extra_sites: dict[str, str] = field(default_factory=dict)
     app_aliases: dict[str, str] = field(default_factory=dict)
 
@@ -90,6 +95,8 @@ def _merge(cls: type, data: Any) -> Any:
             except (TypeError, ValueError):
                 pass
         elif isinstance(current, dict) and not isinstance(value, dict):
+            pass
+        elif isinstance(current, list) and not isinstance(value, list):
             pass
         else:
             kwargs[f.name] = value
