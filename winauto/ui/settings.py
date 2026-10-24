@@ -28,6 +28,7 @@ from PySide6.QtWidgets import (
 from winauto.config import Config
 from winauto.services.settings import SettingsService
 from winauto.ui.async_util import run_async
+from winauto.ui.hotkey_edit import HotkeyEdit
 from winauto.ui.icons import icon
 from winauto.ui.theme import DARK, LIGHT, Palette, is_dark
 from winauto.ui.widgets import ToggleSwitch
@@ -189,16 +190,18 @@ class SettingsDialog(QDialog):
         self._row(c, "Appearance", "Takes effect next time WinAuto starts.", self.theme)
 
         c = self._card(v, "Shortcuts")
-        self.hotkey = QLineEdit(self.config.hotkey)
-        self.hotkey.setPlaceholderText("ctrl+alt+space")
-        self._row(c, "Open WinAuto", "Works from any app.", self.hotkey)
-        self.text_hotkey = QLineEdit(self.config.text_hotkey)
-        self.text_hotkey.setPlaceholderText("ctrl+alt+t")
-        self._row(c, "Writing tools", "Select text in any app, then press this.", self.text_hotkey)
+        self.hotkey = HotkeyEdit(self.config.hotkey)
+        self._row(c, "Open WinAuto", "Works from any app. Click the box, then press new keys.", self.hotkey)
+        self.text_hotkey = HotkeyEdit(self.config.text_hotkey, can_clear=True)
+        self._row(c, "Writing tools", "Select text in any app, then press this. Backspace turns it off.",
+                  self.text_hotkey)
 
         c = self._card(v, "Behaviour")
         self.start_with_windows = self._toggle(self.config.start_with_windows)
         self._row(c, "Start with Windows", "Run quietly in the tray when you sign in.", self.start_with_windows)
+        self.hide_on_click = self._toggle(self.config.hide_on_click_away)
+        self._row(c, "Hide when you click elsewhere", "Like the Start menu. Stays open while it's working or waiting "
+                  "for your approval.", self.hide_on_click)
         self.quick = self._toggle(self.config.use_quick_commands)
         self._row(c, "Instant commands", "Handle simple commands like “volume 30” without the AI.", self.quick)
         self.briefing = self._toggle(self.config.morning_briefing)
@@ -411,9 +414,10 @@ class SettingsDialog(QDialog):
         cfg.llm.stream = self.stream.isChecked()
         cfg.user_name = self.user_name.text().strip()
         cfg.theme = self.theme.currentData()
-        cfg.hotkey = self.hotkey.text().strip().lower() or "ctrl+alt+space"
-        cfg.text_hotkey = self.text_hotkey.text().strip().lower()
+        cfg.hotkey = self.hotkey.combo() or "ctrl+alt+space"
+        cfg.text_hotkey = self.text_hotkey.combo()
         cfg.start_with_windows = self.start_with_windows.isChecked()
+        cfg.hide_on_click_away = self.hide_on_click.isChecked()
         cfg.use_quick_commands = self.quick.isChecked()
         cfg.morning_briefing = self.briefing.isChecked()
         cfg.speak_replies = self.speak.isChecked()

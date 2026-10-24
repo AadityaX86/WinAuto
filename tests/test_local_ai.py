@@ -258,6 +258,32 @@ def test_builtin_client_messages(ai):
     assert ok and "Tiny VL" in msg
 
 
+def test_builtin_client_streams_with_a_length_cap(ai, monkeypatch):
+    """Always streamed and capped, so a slow or rambling answer can't tie up the engine."""
+    from winauto.adapters.llm import builtin
+    from winauto.core.llm import LLMError, LLMReply
+
+    seen = {}
+
+    class FakeClient:
+        def __init__(self, **kwargs):
+            seen["init"] = kwargs
+
+        def chat(self, messages, tools, on_token=None):
+            seen["on_token"] = on_token
+            if messages[-1]["content"] == "slow":
+                raise LLMError("The AI model took too long to answer.")
+            return LLMReply(content="Paris.")
+
+    monkeypatch.setattr(builtin, "OpenAICompatClient", FakeClient)
+    ai.install()
+    client = builtin.BuiltinClient(ai)
+    assert client.chat([{"role": "user", "content": "capital of france?"}], []).content == "Paris."
+    assert seen["init"]["max_tokens"] == builtin.MAX_ANSWER_TOKENS and callable(seen["on_token"])
+    with pytest.raises(LLMError, match="small model in Settings"):
+        client.chat([{"role": "user", "content": "slow"}], [])
+
+
 # ---------------- first-run setup service ----------------
 
 
@@ -281,12 +307,16 @@ def test_setup_picks_model_downloads_and_loads(ai, monkeypatch):
         cfg.llm.builtin_model = new.llm.builtin_model
 
     store = Store()
-    setup = AISetup(ai, lambda: cfg, apply, store=store, gpus=lambda: [Gpu("RTX", 12 * 1024**3)], ram=lambda: 0)
+    notes = []
+    setup = AISetup(ai, lambda: cfg, apply, store=store, gpus=lambda: [Gpu("RTX", 12 * 1024**3)], ram=lambda: 0,
+                    notify=lambda title, message: notes.append((title, message)))
     assert setup.needed() and setup.view().action == "resume"
     assert setup.hardware() == "RTX · 12 GB graphics memory"
     assert setup.start()
     setup._thread.join(5)
     assert saved == ["tiny-vl"] and ai.installed() and ai.status().state == READY
+    # A desktop notification says so, in case the popup is closed.
+    assert notes == [("Your AI is ready", "Press Ctrl+Alt+Space and ask anything. It runs entirely on this PC.")]
     view = setup.view()
     assert view.visible and view.title.startswith("✓") and view.dot is True
     setup.dismiss()

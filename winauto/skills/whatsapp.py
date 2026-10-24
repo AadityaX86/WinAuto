@@ -9,7 +9,8 @@ from typing import Any
 from winauto.adapters.winos import NotOnWindows
 from winauto.adapters.winos.whatsapp import WhatsAppDesktop
 from winauto.core.context import Context
-from winauto.core.skill import QuickRule, Risk, Skill, ToolResult, fail, ok, tool
+from winauto.core.launcher import starts, template
+from winauto.core.skill import QuickRule, Risk, Skill, Suggestion, ToolResult, fail, ok, tool
 from winauto.skills.shared.contacts import ContactBook, normalize_phone
 
 log = logging.getLogger(__name__)
@@ -41,15 +42,14 @@ class WhatsAppSkill(Skill):
         if len(phone) < 10 and not cc:
             return None, contact["name"], (
                 f"{contact['name']}'s number ({contact['phone']}) has no country code. "
-                "Add it to the contact, or set your country code in Settings → Messaging."
+                "Add it to the contact, or set your country code in Settings → Accounts → Messaging."
             )
         return phone, contact["name"], None
 
     @tool(
         "Send a WhatsApp message. The user sees and can edit it first.",
         params={"to": "Contact name or phone number", "message": "The message text"},
-        risk=Risk.CONFIRM, editable=("message",), confirm_label="Send",
-    )
+        risk=Risk.CONFIRM, editable=("message",), confirm_label="Send", title="WhatsApp {to}: {message}")
     def send_whatsapp(self, to: str, message: str) -> ToolResult:
         phone, name, error = self._target(to)
         if error or not phone:
@@ -71,6 +71,17 @@ class WhatsAppSkill(Skill):
         except OSError as exc:
             return fail(f"Couldn't open WhatsApp: {exc}")
 
+    def precheck(self, tool_name: str, args: dict[str, Any]) -> ToolResult | None:
+        if tool_name != "send_whatsapp":
+            return None
+        to = str(args.get("to", ""))
+        phone, _, error = self._target(to)
+        if phone and not error:
+            return None
+        return fail((error or f"I need a phone number for {to}.") +
+                    f" Type their number instead, with the country code (whatsapp +<number>: hi), "
+                    f"or save it once: add contact {to} +<number>", fallback=True)
+
     def preview(self, tool_name: str, args: dict[str, Any]) -> str | None:
         if tool_name == "send_whatsapp":
             phone, name, error = self._target(str(args.get("to", "")))
@@ -80,7 +91,7 @@ class WhatsAppSkill(Skill):
         return None
 
     @tool("Open a WhatsApp chat with someone without sending anything.", params={"to": "Contact name or phone number"},
-          hides_popup=True)
+          hides_popup=True, title="Open WhatsApp chat with {to}")
     def open_whatsapp_chat(self, to: str) -> ToolResult:
         phone, name, error = self._target(to)
         if error or not phone:
@@ -90,6 +101,11 @@ class WhatsAppSkill(Skill):
         except (OSError, NotOnWindows) as exc:
             return fail(f"Couldn't open WhatsApp: {exc}")
         return ok(f"Opened your WhatsApp chat with {name}.")
+
+    def suggest(self, query: str) -> list[Suggestion]:
+        if not starts(query, "whatsapp", "whats app", "message", "send a message", "text"):
+            return []
+        return [template("Message on WhatsApp…", "whatsapp ", "Type name: message, e.g. ram: on my way", "message", 86)]
 
     def quick_rules(self) -> list[QuickRule]:
         def send(m):

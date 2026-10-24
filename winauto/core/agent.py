@@ -16,6 +16,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Callable, Protocol
 
+from winauto.core.launcher import command_title
 from winauto.core.llm import LLMClient, LLMError, ToolCall
 from winauto.core.quick import QuickMatcher
 from winauto.core.registry import Registry
@@ -72,6 +73,7 @@ class Step:
     tool: str
     args: dict[str, Any]
     result: ToolResult
+    label: str = ""  # what it did, in plain words: "Set volume to 40%"
 
 
 @dataclass
@@ -84,7 +86,7 @@ class AgentReply:
 
 SYSTEM_PROMPT = """You are WinAuto, an assistant running on the user's Windows PC. You do everyday tasks for them by calling tools.
 
-Now: {now}.{user}
+Today is {today}.{user}
 
 Rules:
 - If a request needs an action or the user's own data (apps, notes, todos, email, messages, files, settings), call a tool. Do it; don't just describe it.
@@ -149,8 +151,10 @@ class Agent:
         now = self.clock()
         hints = self.registry.prompt_hints(skills)
         context = self.registry.prompt_contexts()
+        # Only the date here: this text and the tool list stay the same all day, so the engine can reuse
+        # its work on them from one question to the next. The time goes with the question (see below).
         return SYSTEM_PROMPT.format(
-            now=now.strftime("%A %d %B %Y, %H:%M"),
+            today=now.strftime("%A %d %B %Y"),
             user=f" The user's name is {self.user_name}." if self.user_name else "",
             hints=("\nSkill notes:\n" + hints) if hints else "",
         ) + (("\n" + context) if context else "")
@@ -172,7 +176,7 @@ class Agent:
             if call:
                 log.info("Quick command: %s %s", call.name, call.arguments)
                 result = self.run_tool(call)
-                step = Step(call.name, call.arguments, result)
+                step = Step(call.name, call.arguments, result, self.describe(call))
                 # A quick command that couldn't find its target (e.g. no app by that
                 # name) gets a second chance with the model, which may know what was meant.
                 if not (result.fallback and self.llm is not None):
@@ -197,7 +201,7 @@ class Agent:
         skills = self._choose_skills(text, previous)
         messages: list[dict[str, Any]] = [{"role": "system", "content": self.system_prompt(skills)}]
         messages += self.history
-        messages.append({"role": "user", "content": text})
+        messages.append({"role": "user", "content": f"{text}\n\n(Time now: {self.clock().strftime('%H:%M')})"})
         schemas = self.registry.schemas(skills)
         steps: list[Step] = []
         seen_calls: set[str] = set()
@@ -222,7 +226,7 @@ class Agent:
                 repeated = repeated or key in seen_calls
                 seen_calls.add(key)
                 result = self.run_tool(call)
-                steps.append(Step(call.name, call.arguments, result))
+                steps.append(Step(call.name, call.arguments, result, self.describe(call)))
                 results.append((self.registry.get(call.name), result))
                 messages.append(
                     {
@@ -267,6 +271,10 @@ class Agent:
         log.info("Router picked %s", [s.name for s in chosen])
         return self.registry.with_always(chosen)
 
+    def describe(self, call: ToolCall) -> str:
+        """A tool call in plain words, e.g. "Open Notepad"."""
+        return command_title(call.name, call.arguments, self.registry.get(call.name))
+
     def run_tool(self, call: ToolCall) -> ToolResult:
         tool = self.registry.get(call.name)
         if tool is None:
@@ -276,6 +284,14 @@ class Agent:
         except ArgumentError as exc:
             return fail(f"Bad input for {tool.name}: {exc}")
         if tool.risk is Risk.CONFIRM:
+            problem = None
+            if tool.precheck:
+                try:
+                    problem = tool.precheck(args)
+                except Exception:  # a check must never block the request
+                    log.exception("precheck failed for %s", tool.name)
+            if problem is not None:
+                return problem
             request = ConfirmRequest(
                 tool=tool.name,
                 title=tool.name.replace("_", " ").capitalize() + "?",

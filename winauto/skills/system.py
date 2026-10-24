@@ -9,6 +9,7 @@ from typing import Any, Literal
 from winauto.adapters import sysinfo
 from winauto.adapters.winos import NotOnWindows
 from winauto.core.context import Context
+from winauto.core.launcher import starts, template
 from winauto.core.skill import (
     QuickRule,
     Risk,
@@ -21,6 +22,8 @@ from winauto.core.skill import (
 )
 
 log = logging.getLogger(__name__)
+
+POWER_TITLES = {"shutdown": "Shut down", "restart": "Restart", "signout": "Sign out"}
 
 SETTINGS_PAGES = {
     "wifi": "ms-settings:network-wifi", "network": "ms-settings:network", "bluetooth": "ms-settings:bluetooth",
@@ -90,12 +93,13 @@ class SystemSkill(Skill):
 
     # ----- volume -----
 
-    @tool("Set the volume to a level from 0 to 100.", params={"level": "0-100"})
+    @tool("Set the volume to a level from 0 to 100.", params={"level": "0-100"}, title="Set volume to {level}%")
     def set_volume(self, level: int) -> ToolResult:
         level = max(0, min(100, level))
         return self._run(self.backend.set_volume, level, success=f"Volume set to {level}%.")
 
-    @tool("Turn the volume up or down by some amount.", params={"change": "Percent to change, negative for down (e.g. 10 or -10)"})
+    @tool("Turn the volume up or down by some amount.", params={"change": "Percent to change, negative for down (e.g. 10 or -10)"},
+          title=lambda a: f"Volume {'up' if a['change'] > 0 else 'down'} {abs(a['change'])}%")
     def change_volume(self, change: int = 10) -> ToolResult:
         try:
             current, _ = self.backend.get_volume()
@@ -106,18 +110,21 @@ class SystemSkill(Skill):
         level = max(0, min(100, current + change))
         return self._run(self.backend.set_volume, level, success=f"Volume {'up' if change > 0 else 'down'} to {level}%.")
 
-    @tool("Mute or unmute the sound.", params={"mute": "true to mute, false to unmute"})
+    @tool("Mute or unmute the sound.", params={"mute": "true to mute, false to unmute"},
+          title=lambda a: "Mute" if a["mute"] else "Unmute")
     def mute(self, mute: bool = True) -> ToolResult:
         return self._run(self.backend.set_mute, mute, success="Muted." if mute else "Sound is back on.")
 
     # ----- display -----
 
-    @tool("Set screen brightness (laptop screens) from 0 to 100.", params={"level": "0-100"})
+    @tool("Set screen brightness (laptop screens) from 0 to 100.", params={"level": "0-100"},
+          title="Set brightness to {level}%")
     def set_brightness(self, level: int) -> ToolResult:
         level = max(0, min(100, level))
         return self._run(self.backend.set_brightness, level, success=f"Brightness set to {level}%.")
 
-    @tool("Make the screen brighter or dimmer.", params={"change": "Percent to change, negative for dimmer"})
+    @tool("Make the screen brighter or dimmer.", params={"change": "Percent to change, negative for dimmer"},
+          title=lambda a: f"Brightness {'up' if a['change'] > 0 else 'down'}")
     def change_brightness(self, change: int = 15) -> ToolResult:
         try:
             current = self.backend.get_brightness()
@@ -128,13 +135,15 @@ class SystemSkill(Skill):
         level = max(0, min(100, current + change))
         return self._run(self.backend.set_brightness, level, success=f"Brightness {level}%.")
 
-    @tool("Switch Windows between dark mode and light mode.", params={"on": "true for dark mode, false for light mode"})
+    @tool("Switch Windows between dark mode and light mode.", params={"on": "true for dark mode, false for light mode"},
+          title=lambda a: "Dark mode" if a["on"] else "Light mode")
     def dark_mode(self, on: bool = True) -> ToolResult:
         return self._run(self.backend.set_dark_mode, on, success="Dark mode on." if on else "Light mode on.")
 
     # ----- radios / settings -----
 
-    @tool("Turn Wi-Fi on or off.", params={"on": "true for on, false for off"})
+    @tool("Turn Wi-Fi on or off.", params={"on": "true for on, false for off"},
+          title=lambda a: f"Wi-Fi {'on' if a['on'] else 'off'}")
     def wifi(self, on: bool) -> ToolResult:
         result = self._run(self.backend.set_radio, "WiFi", on, success=f"Wi-Fi {'on' if on else 'off'}.")
         if not result.ok and "only works on Windows" not in result.message:
@@ -142,7 +151,8 @@ class SystemSkill(Skill):
             result.message += " I opened Wi-Fi settings for you."
         return result
 
-    @tool("Turn Bluetooth on or off.", params={"on": "true for on, false for off"})
+    @tool("Turn Bluetooth on or off.", params={"on": "true for on, false for off"},
+          title=lambda a: f"Bluetooth {'on' if a['on'] else 'off'}")
     def bluetooth(self, on: bool) -> ToolResult:
         result = self._run(self.backend.set_radio, "Bluetooth", on, success=f"Bluetooth {'on' if on else 'off'}.")
         if not result.ok and "only works on Windows" not in result.message:
@@ -153,8 +163,7 @@ class SystemSkill(Skill):
     @tool(
         "Open a page of Windows Settings.",
         params={"page": "e.g. wifi, bluetooth, display, sound, battery, windows update, background, storage, apps"},
-        hides_popup=True,
-    )
+        hides_popup=True, title="Open {page} settings")
     def open_settings(self, page: str = "") -> ToolResult:
         key = re.sub(r"\s+settings?$", "", page.strip().lower())
         uri = SETTINGS_PAGES.get(key, "ms-settings:")
@@ -163,17 +172,18 @@ class SystemSkill(Skill):
 
     # ----- power -----
 
-    @tool("Lock the PC.")
+    @tool("Lock the PC.", title="Lock PC")
     def lock_pc(self) -> ToolResult:
         return self._run(self.backend.lock, success="Locked.")
 
-    @tool("Put the PC to sleep.", risk=Risk.CONFIRM, confirm_label="Sleep")
+    @tool("Put the PC to sleep.", risk=Risk.CONFIRM, confirm_label="Sleep", title="Sleep")
     def sleep_pc(self) -> ToolResult:
         return self._run(self.backend.sleep, success="Going to sleep.")
 
     @tool("Shut down, restart or sign out of the PC.",
           params={"action": "shutdown, restart or signout", "minutes": "Delay in minutes (0 = now)"},
-          risk=Risk.CONFIRM, confirm_label="Yes, do it")
+          risk=Risk.CONFIRM, confirm_label="Yes, do it",
+          title=lambda a: POWER_TITLES.get(a["action"], "Shut down") + (f" in {a['minutes']} min" if a.get("minutes") else ""))
     def power_off(self, action: Literal["shutdown", "restart", "signout"] = "shutdown", minutes: int = 0) -> ToolResult:
         minutes = max(0, minutes)
         when = f" in {minutes} minute{'s' if minutes != 1 else ''}" if minutes else " now"
@@ -208,7 +218,7 @@ class SystemSkill(Skill):
 
     # ----- status -----
 
-    @tool("Battery level and whether it's charging.")
+    @tool("Battery level and whether it's charging.", title="Battery status")
     def battery_status(self) -> ToolResult:
         battery = sysinfo.battery()
         if battery is None:
@@ -217,7 +227,7 @@ class SystemSkill(Skill):
         left = f", about {_human_duration(battery.seconds_left)} left" if battery.seconds_left else ""
         return ok(f"Battery at {battery.percent:.0f}% ({state}{left}).")
 
-    @tool("PC health: CPU, memory, disk space, uptime, and what's using the most memory.")
+    @tool("PC health: CPU, memory, disk space, uptime, and what's using the most memory.", title="Check PC health")
     def pc_status(self) -> ToolResult:
         u = sysinfo.usage()
         try:
@@ -250,10 +260,14 @@ class SystemSkill(Skill):
         ("Light mode", "dark_mode", {"on": False}, "sun", "theme day"),
         ("Mute", "mute", {"mute": True}, "volume-x", "silence sound"),
         ("Unmute", "mute", {"mute": False}, "volume", "sound on"),
+        ("Volume up", "change_volume", {"change": 10}, "volume", "louder sound vol"),
+        ("Volume down", "change_volume", {"change": -10}, "volume", "quieter sound vol"),
+        ("Brightness up", "change_brightness", {"change": 15}, "sun", "brighter screen"),
+        ("Brightness down", "change_brightness", {"change": -15}, "sun", "dimmer dim screen"),
         ("Battery status", "battery_status", {}, "battery", "charge"),
         ("PC health", "pc_status", {}, "activity", "cpu ram memory disk status slow"),
-        ("Wi-Fi on", "wifi", {"on": True}, "wifi", "wireless internet"),
-        ("Wi-Fi off", "wifi", {"on": False}, "wifi", "wireless internet"),
+        ("Wi-Fi on", "wifi", {"on": True}, "wifi", "wifi wireless internet"),
+        ("Wi-Fi off", "wifi", {"on": False}, "wifi", "wifi wireless internet"),
         ("Bluetooth on", "bluetooth", {"on": True}, "bluetooth", ""),
         ("Bluetooth off", "bluetooth", {"on": False}, "bluetooth", ""),
     ]
@@ -275,7 +289,11 @@ class SystemSkill(Skill):
             if sc >= 80 or (len(q) >= 3 and page.startswith(q)):
                 out.append(Suggestion(title=f"{page.title()} settings", subtitle="Windows Settings", tool="open_settings",
                                       args={"page": page}, kind="Setting", icon="settings", score=min(sc, 95) - 5))
-        return sorted(out, key=lambda x: -x.score)[:4]
+        if starts(query, "volume", "vol", "sound"):
+            out.append(template("Set volume to…", "volume ", "Type a number from 0 to 100", "volume", 90))
+        if starts(query, "brightness"):
+            out.append(template("Set brightness to…", "brightness ", "Type a number from 0 to 100", "sun", 90))
+        return sorted(out, key=lambda x: -x.score)[:5]
 
     # ----- quick commands -----
 
@@ -300,9 +318,9 @@ class SystemSkill(Skill):
         radios = r"(?P<r>wi-?fi|bluetooth)"
         states = r"(?P<s>on|off|enable|disable|start|stop)"
         return [
-            QuickRule(r"(?:set\s+)?(?:the\s+)?(?:volume|sound)\s+(?:to\s+|at\s+)?(?P<n>\d{1,3})\s*%?(?:\s+percent)?",
+            QuickRule(r"(?:set\s+)?(?:the\s+)?(?:volume|vol|sound)\s+(?:to\s+|at\s+)?(?P<n>\d{1,3})\s*%?(?:\s+percent)?",
                       lambda m: ("set_volume", {"level": int(m["n"])})),
-            QuickRule(r"(?:turn\s+(?:the\s+)?)?(?:volume|sound)\s+(?P<d>up|down)(?:\s+(?:by\s+)?(?P<n>\d{1,2})\s*%?)?", vol_dir),
+            QuickRule(r"(?:turn\s+(?:the\s+)?)?(?:volume|vol|sound)\s+(?P<d>up|down)(?:\s+(?:by\s+)?(?P<n>\d{1,2})\s*%?)?", vol_dir),
             QuickRule(r"(?:turn\s+(?:it|the\s+volume|the\s+sound)\s+)(?P<d>up|down)(?:\s+(?:by\s+)?(?P<n>\d{1,2})\s*%?)?", vol_dir),
             QuickRule(r"(?:(?:make\s+it|a\s+bit|bit)\s+)?(?P<d>louder|quieter)(?P<n>)", vol_dir),
             QuickRule(r"(?:mute|silence)(?:\s+(?:the\s+)?(?:volume|sound|audio|pc|computer|speakers))?",

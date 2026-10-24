@@ -182,7 +182,7 @@ class FilesSkill(Skill):
 
     @tool("Open a folder in File Explorer.",
           params={"folder": "desktop, downloads, documents, pictures, music, videos, screenshots, or a full path"},
-          hides_popup=True)
+          hides_popup=True, title="Open {folder} folder")
     def open_folder(self, folder: str) -> ToolResult:
         if folder.strip().lower() in ("recycle bin", "trash", "bin"):
             self._open("shell:RecycleBinFolder")
@@ -206,8 +206,7 @@ class FilesSkill(Skill):
     @tool(
         "Find files by name in your usual folders (Desktop, Documents, Downloads, Pictures, Videos, Music, OneDrive).",
         params={"query": "Words from the file name", "kind": "Optional: image, video, audio, pdf, document, spreadsheet, presentation, archive, installer, code",
-                "folder": "Optional folder to look in, e.g. downloads"},
-    )
+                "folder": "Optional folder to look in, e.g. downloads"}, title="Find files: {query} {kind}")
     def find_files(self, query: str, kind: str = "", folder: str = "") -> ToolResult:
         kind = KIND_WORDS.get(kind.lower(), kind.lower()) if kind else ""
         results = self.search(query, kind, folder)
@@ -267,7 +266,7 @@ class FilesSkill(Skill):
         return downloads, plan
 
     @tool("Tidy the Downloads folder into subfolders by type (Images, Documents, Videos, Music, Archives, Installers, Code, Other).",
-          risk=Risk.CONFIRM, confirm_label="Tidy up")
+          risk=Risk.CONFIRM, confirm_label="Tidy up", title="Tidy up Downloads")
     def organize_downloads(self) -> ToolResult:
         downloads, plan = self._sort_plan()
         if downloads is None:
@@ -330,6 +329,15 @@ class FilesSkill(Skill):
             return ok(f"{clean} already exists in {base.name}.")
         target.mkdir(parents=True)
         return ok(f"Created {clean} in {base.name}.", data={"path": str(target)})
+
+    def precheck(self, tool_name: str, args: dict[str, Any]) -> ToolResult | None:
+        if tool_name == "organize_downloads":
+            downloads, plan = self._sort_plan()
+            if downloads is None:
+                return fail("I can't find your Downloads folder.")
+            if not plan:
+                return ok("Downloads is already tidy: nothing to move.")  # no card for nothing
+        return None
 
     def preview(self, tool_name: str, args: dict[str, Any]) -> str | None:
         if tool_name == "organize_downloads":

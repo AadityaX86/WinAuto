@@ -29,12 +29,14 @@ class OpenAICompatClient:
         temperature: float = 0.2,
         timeout: float = 180.0,
         api_key: str = "",
+        max_tokens: int | None = None,
     ):
         self.base_url = base_url.rstrip("/")
         self.model = model
         self.temperature = temperature
         self.timeout = timeout
         self.api_key = api_key
+        self.max_tokens = max_tokens  # a cap on the answer's length, so a rambling model can't run for minutes
 
     def _headers(self) -> dict[str, str]:
         return {"Authorization": f"Bearer {self.api_key}"} if self.api_key else {}
@@ -73,6 +75,8 @@ class OpenAICompatClient:
             "temperature": self.temperature,
             "stream": on_token is not None,
         }
+        if self.max_tokens:
+            payload["max_tokens"] = self.max_tokens
         if tools:
             payload["tools"] = tools
         url = f"{self.base_url}/chat/completions"

@@ -118,6 +118,7 @@ class FocusSkill(Skill):
         params={"minutes": "Work length (default 25)", "rounds": "How many work rounds (default 1)",
                 "break_minutes": "Break between rounds (default 5)",
                 "block_apps": "Apps to keep away (default: your list in Settings)"},
+        title=lambda a: f"Focus for {a['minutes']} min",
     )
     def start_focus(self, minutes: int = 25, rounds: int = 1, break_minutes: int = 5,
                     block_apps: list[str] | None = None) -> ToolResult:

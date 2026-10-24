@@ -158,7 +158,8 @@ class ToolsSkill(Skill):
             return False
 
     @tool("Generate a strong random password and copy it.",
-          params={"length": "How many characters (default 16)", "symbols": "Include symbols (default true)"})
+          params={"length": "How many characters (default 16)", "symbols": "Include symbols (default true)"},
+          title="Generate a password")
     def generate_password(self, length: int = 16, symbols: bool = True) -> ToolResult:
         pw = make_password(length, symbols)
         copied = self._copy(pw)
@@ -197,7 +198,8 @@ class ToolsSkill(Skill):
         self.ctx.notify("Colour picked", f"{f['hex']} copied · {f['rgb']}")
         return ok(f"Picked {f['hex']} (copied) · {f['rgb']} · {f['hsl']}", data=f)
 
-    @tool("Show this PC's network details: local IP, public IP, Wi-Fi network name.")
+    @tool("Show this PC's network details: local IP, public IP, Wi-Fi network name.",
+          title="Show IP address and network")
     def network_info(self) -> ToolResult:
         ip = sysinfo.local_ip()
         lines = [f"Local IP: {ip}" if ip else "Local IP: not connected"]

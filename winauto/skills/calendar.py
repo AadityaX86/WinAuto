@@ -242,7 +242,8 @@ class CalendarSkill(Skill):
         where = f" · {e.location}" if e.location else ""
         return f"- **{when}** {e.title}{where}"
 
-    @tool("Show events for a day.", params={"day": "today, tomorrow, a weekday or a date (default today)"})
+    @tool("Show events for a day.", params={"day": "today, tomorrow, a weekday or a date (default today)"},
+          title=lambda a: f"Agenda for {a['day']}")
     def get_agenda(self, day: str = "today") -> ToolResult:
         target = self._day(day)
         if target is None:

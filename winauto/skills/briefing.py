@@ -38,7 +38,7 @@ class BriefingSkill(Skill):
         return f"**{title}**\n{text}"
 
     @tool("A briefing for today: weather, calendar, todos, reminders, unread email and top news.",
-          params={"include_news": "Add top headlines (default true)"})
+          params={"include_news": "Add top headlines (default true)"}, title="Morning briefing")
     def daily_briefing(self, include_news: bool = True) -> ToolResult:
         now = self.clock()
         part = "morning" if now.hour < 12 else "afternoon" if now.hour < 17 else "evening"

@@ -63,6 +63,7 @@ class Config:
     hotkey: str = "ctrl+alt+space"
     text_hotkey: str = "ctrl+alt+t"  # writing tools for the selected text
     start_with_windows: bool = False
+    hide_on_click_away: bool = True  # hide the popup when you click another window
     search_engine: str = "google"  # google, bing, duckduckgo
     user_name: str = ""
     history_turns: int = 6

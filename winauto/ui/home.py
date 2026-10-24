@@ -17,6 +17,7 @@ from winauto.ui.icons import pixmap
 from winauto.ui.parts import clear_layout
 from winauto.ui.setup import SetupCard
 from winauto.ui.theme import Palette
+from winauto.ui.welcome import WelcomeCard
 from winauto.ui.widgets import ResultList
 
 
@@ -37,10 +38,16 @@ class HomeView(QWidget):
         head.addWidget(self.greeting)
         head.addWidget(self.sub)
         v.addLayout(head)
+        # First run only: how to use WinAuto.
+        self.welcome = WelcomeCard(palette)
+        welcome_box = QHBoxLayout()
+        welcome_box.setContentsMargins(22, 2, 22, 0)  # hidden boxes keep their margins: keep them small
+        welcome_box.addWidget(self.welcome)
+        v.addLayout(welcome_box)
         # Built-in AI download/loading progress (hidden when there's nothing to say).
         self.setup = SetupCard(palette)
         setup_box = QHBoxLayout()
-        setup_box.setContentsMargins(22, 8, 22, 0)
+        setup_box.setContentsMargins(22, 2, 22, 0)
         setup_box.addWidget(self.setup)
         v.addLayout(setup_box)
         self.widgets_row = QHBoxLayout()
@@ -48,7 +55,9 @@ class HomeView(QWidget):
         self.widgets_row.setSpacing(8)
         v.addLayout(self.widgets_row)
         self.list = ResultList(palette)
+        self.list.setMinimumHeight(40)  # the cards above keep their full height; the list scrolls
         v.addWidget(self.list, 1)
+        self._widget_items: list[tuple[str, str]] = []
         self.refresh_greeting("")
 
     def refresh_greeting(self, name: str) -> None:
@@ -57,8 +66,15 @@ class HomeView(QWidget):
         self.greeting.setText(f"{part}{', ' + name.split()[0] if name else ''}")
         self.sub.setText(now.strftime("%A, %d %B"))
 
+    def hide_welcome(self) -> None:
+        self.welcome.hide()
+        self.set_widgets(self._widget_items)  # back in the room the welcome card used
+
     def set_widgets(self, items: list[tuple[str, str]]) -> None:
+        self._widget_items = list(items)
         clear_layout(self.widgets_row)
+        if not self.welcome.isHidden():
+            return  # first run: the welcome card needs the room
         for icon_name, text in items:
             box = QFrame()
             box.setObjectName("Widget")

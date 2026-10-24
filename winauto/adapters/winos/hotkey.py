@@ -105,9 +105,11 @@ class HotkeyListener:
         user32.PeekMessageW(ctypes.byref(msg), None, 0, 0, 0)
         if not user32.RegisterHotKey(None, 1, self._mods | MOD_NOREPEAT, self._vk):
             err = ctypes.get_last_error()
+            keys = "+".join(k.capitalize() if len(k) > 1 else k.upper() for k in self.hotkey.split("+"))
             self.error = (
-                f"{self.hotkey} is already used by another app. Pick another hotkey in Settings."
-                if err == 1409 else f"Couldn't register {self.hotkey} (error {err})."
+                f"{keys} is already used by another app. Pick another shortcut in Settings → General; "
+                "until then, click WinAuto's tray icon to open it."
+                if err == 1409 else f"Couldn't set up the {keys} shortcut (Windows error {err})."
             )
             self._ready.set()
             return

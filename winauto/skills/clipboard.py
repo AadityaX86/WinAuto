@@ -70,7 +70,7 @@ class ClipboardSkill(Skill):
                 self.history.remove(text)
             self.history.appendleft(text)
 
-    @tool("Get the text currently on the clipboard (what the user copied).", final=False)
+    @tool("Get the text currently on the clipboard (what the user copied).", final=False, title="Show clipboard")
     def get_clipboard(self) -> ToolResult:
         try:
             text = self.backend.get_text()
@@ -90,7 +90,7 @@ class ClipboardSkill(Skill):
             return fail(str(exc))
         return ok("Copied to the clipboard. Paste it with Ctrl+V.")
 
-    @tool("Show recently copied text (this session).", params={"limit": "How many"})
+    @tool("Show recently copied text (this session).", params={"limit": "How many"}, title="Clipboard history")
     def clipboard_history(self, limit: int = 10) -> ToolResult:
         try:
             self.capture()

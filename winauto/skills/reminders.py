@@ -11,8 +11,9 @@ from datetime import datetime, timedelta
 from typing import Any, Callable, Literal
 
 from winauto.core.context import Context
+from winauto.core.launcher import starts, template
 from winauto.core.matching import rank
-from winauto.core.skill import QuickRule, Skill, ToolResult, Widget, fail, ok, tool
+from winauto.core.skill import QuickRule, Skill, Suggestion, ToolResult, Widget, fail, ok, tool
 from winauto.core.timeparse import (
     describe,
     find_when,
@@ -150,8 +151,7 @@ class RemindersSkill(Skill):
     @tool(
         "Set a reminder that pops up as a notification.",
         params={"text": "What to remind about", "when": "When, in plain words: 'in 20 minutes', 'tomorrow 9am', 'friday 5pm'",
-                "repeat": "none, daily, weekdays, weekly or monthly"},
-    )
+                "repeat": "none, daily, weekdays, weekly or monthly"}, title="Remind me to {text} · {when}")
     def set_reminder(self, text: str, when: str, repeat: Literal["none", "daily", "weekdays", "weekly", "monthly"] = "none") -> ToolResult:
         now = self.clock()
         parsed = parse_when(when, now)
@@ -169,7 +169,8 @@ class RemindersSkill(Skill):
         return ok(f"I'll remind you to {text} {describe(due, True, now)}{again}. (#{rid})")
 
     @tool("Start a countdown timer.", params={"duration": "e.g. '10 minutes', '1h30m', '90 seconds'",
-                                               "label": "Optional name, e.g. 'pasta'"})
+                                               "label": "Optional name, e.g. 'pasta'"},
+          title="Start a timer: {duration} · {label}")
     def set_timer(self, duration: str, label: str = "") -> ToolResult:
         seconds = parse_duration(duration)
         if not seconds:
@@ -183,7 +184,7 @@ class RemindersSkill(Skill):
         ends = (now + timedelta(seconds=seconds)).strftime("%I:%M %p").lstrip("0")
         return ok(f"Timer set for {pretty}{f' ({label.strip()})' if label.strip() else ''}. Ends at {ends}. (#{rid})")
 
-    @tool("Show upcoming reminders and running timers.")
+    @tool("Show upcoming reminders and running timers.", title="Show reminders and timers")
     def list_reminders(self) -> ToolResult:
         now = self.clock()
         rows = self.db.query("SELECT * FROM reminders WHERE active = 1 ORDER BY due_at")
@@ -200,7 +201,8 @@ class RemindersSkill(Skill):
                 lines.append(f"- #{r['id']} {r['text']} — {describe(due, True, now)}{again}")
         return ok("Coming up:\n" + "\n".join(lines))
 
-    @tool("Cancel a reminder or timer.", params={"which": "Its number (e.g. 4) or some of its words, or 'timer' for the timer"})
+    @tool("Cancel a reminder or timer.", params={"which": "Its number (e.g. 4) or some of its words, or 'timer' for the timer"},
+          title=lambda a: "Cancel the timer" if a["which"] == "timer" else f"Cancel reminder: {a['which']}")
     def cancel_reminder(self, which: str) -> ToolResult:
         rows = self.db.query("SELECT * FROM reminders WHERE active = 1 ORDER BY due_at")
         if not rows:
@@ -236,6 +238,17 @@ class RemindersSkill(Skill):
         stamp = when.strftime("%I:%M %p").lstrip("0") if when.date() == now.date() else when.strftime("%a %I:%M %p")
         return [Widget("bell", f"{nxt['text'][:28]} · {stamp}", order=20)]
 
+    def suggest(self, query: str) -> list[Suggestion]:
+        out: list[Suggestion] = []
+        if starts(query, "remind me to", "reminder", "alarm"):
+            out.append(template("Remind me to…", "remind me to ", "Type what and when, e.g. call mom at 6pm", "bell"))
+        if starts(query, "timer", "set a timer", "countdown"):
+            out.append(template("Set a timer…", "timer ", "Type how long, e.g. 10 minutes", "clock"))
+        if starts(query, "reminders", "remind", "timers", "alarms", "reminder", "alarm"):
+            out.append(Suggestion(title="Show my reminders", subtitle="Upcoming reminders and timers",
+                                  tool="list_reminders", args={}, kind="Command", icon="bell", score=82))
+        return out
+
     def quick_rules(self) -> list[QuickRule]:
         def remind(m):
             rest = m["rest"].strip()
@@ -248,6 +261,7 @@ class RemindersSkill(Skill):
                 if word in what.lower():
                     repeat = value
                     what = re.sub(word, "", what, flags=re.I).strip()
+            what = re.sub(r"^(?:to|that)\s+", "", what, flags=re.I)
             when_text = when.dt.isoformat(sep=" ", timespec="minutes")
             return "set_reminder", {"text": what, "when": when_text, "repeat": repeat}
 

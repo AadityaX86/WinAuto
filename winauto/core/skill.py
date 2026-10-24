@@ -143,9 +143,13 @@ class Tool:
     editable: tuple[str, ...] = ()
     confirm_label: str = "Approve"
     preview: Callable[[dict[str, Any]], str] | None = None
+    # For risky tools: a problem to report before the approval card (e.g. "Gmail isn't set up").
+    precheck: Callable[[dict[str, Any]], ToolResult | None] | None = None
     skill: str = ""
     # Hide the popup after this runs successfully (it opened something on screen).
     hides_popup: bool = False
+    # How the launcher names a call: "Open {name}", or a function of the arguments.
+    title: str | Callable[[dict[str, Any]], str] = ""
 
     def schema(self) -> dict[str, Any]:
         return {
@@ -236,8 +240,13 @@ def tool(
     confirm_label: str = "Approve",
     name: str | None = None,
     hides_popup: bool = False,
+    title: str | Callable[[dict[str, Any]], str] = "",
 ) -> Callable:
-    """Mark a Skill method as a tool. `params` maps argument name -> description."""
+    """Mark a Skill method as a tool. `params` maps argument name -> description.
+
+    `title` is what the launcher shows for an instant command, e.g. "Open {name}"
+    (unset or default arguments are left out), or a function of the arguments.
+    """
 
     def deco(fn: Callable) -> Callable:
         fn._tool_meta = {  # type: ignore[attr-defined]
@@ -249,6 +258,7 @@ def tool(
             "confirm_label": confirm_label,
             "name": name or fn.__name__,
             "hides_popup": hides_popup,
+            "title": title,
         }
         return fn
 
@@ -336,6 +346,13 @@ class Skill:
         """Override to give a friendly confirmation text for risky tools."""
         return None
 
+    def precheck(self, tool_name: str, args: dict[str, Any]) -> ToolResult | None:
+        """Override to stop a risky tool before its approval card, e.g. when an account isn't set up.
+
+        Return a failed ToolResult to stop (the user never sees a card they can't use), or None to go on.
+        """
+        return None
+
     def tools(self) -> list[Tool]:
         found: list[Tool] = []
         for attr in dir(type(self)):
@@ -369,6 +386,11 @@ class Skill:
 
                 return _p
 
+            def make_precheck(tn: str) -> Callable[[dict[str, Any]], ToolResult | None] | None:
+                if type(self).precheck is Skill.precheck:
+                    return None
+                return lambda args: self.precheck(tn, args)
+
             found.append(
                 Tool(
                     name=tool_name,
@@ -380,8 +402,10 @@ class Skill:
                     editable=meta["editable"],
                     confirm_label=meta["confirm_label"],
                     preview=make_preview(tool_name),
+                    precheck=make_precheck(tool_name),
                     skill=self.name,
                     hides_popup=meta["hides_popup"],
+                    title=meta["title"],
                 )
             )
         return found

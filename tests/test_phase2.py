@@ -158,9 +158,9 @@ def test_cancel(reminders):
 
 
 @pytest.mark.parametrize("text, tool, check", [
-    ("remind me to call mom at 6pm", "set_reminder", {"text": "to call mom", "when": "2026-10-24 18:00", "repeat": "none"}),
-    ("remind me in 20 minutes to stretch", "set_reminder", {"text": "to stretch", "when": "2026-10-24 14:25", "repeat": "none"}),
-    ("remind me to drink water every day at 10am", "set_reminder", {"text": "to drink water", "when": "2026-10-25 10:00", "repeat": "daily"}),
+    ("remind me to call mom at 6pm", "set_reminder", {"text": "call mom", "when": "2026-10-24 18:00", "repeat": "none"}),
+    ("remind me in 20 minutes to stretch", "set_reminder", {"text": "stretch", "when": "2026-10-24 14:25", "repeat": "none"}),
+    ("remind me to drink water every day at 10am", "set_reminder", {"text": "drink water", "when": "2026-10-25 10:00", "repeat": "daily"}),
     ("set a timer for 10 minutes", "set_timer", {"duration": "10 minutes", "label": ""}),
     ("pasta timer 8 min", "set_timer", {"duration": "8 min", "label": "pasta"}),
     ("5 min timer", "set_timer", {"duration": "5 min", "label": ""}),
@@ -292,6 +292,34 @@ def test_check_read_reply(mail):
 def test_gmail_not_set_up(ctx):
     r = EmailSkill(ctx).check_email()
     assert not r.ok and "apppasswords" in r.message
+
+
+def _agent(skill):
+    from fakes import RecordingConfirmer
+
+    from winauto.core.agent import Agent
+
+    reg = Registry()
+    reg.add(skill)
+    confirmer = RecordingConfirmer()
+    return Agent(reg, None, confirmer), confirmer
+
+
+def test_no_approval_card_that_cant_work(ctx, contacts):
+    """Gmail not set up / unknown WhatsApp contact: say so before the card, and keep the draft."""
+    from winauto.core.llm import ToolCall
+
+    agent, confirmer = _agent(EmailSkill(ctx))
+    r = agent.run_tool(ToolCall("send_email", {"to": "ram", "subject": "Meeting", "body": "Moved to 3pm."}))
+    assert not r.ok and "Settings → Accounts" in r.message and "Moved to 3pm." in r.message
+    assert confirmer.requests == []
+    ctx.config.messaging.default_country_code = "977"
+    agent, confirmer = _agent(WhatsAppSkill(ctx, FakeWhatsApp()))
+    r = agent.run_tool(ToolCall("send_whatsapp", {"to": "zorro", "message": "hi"}))
+    assert not r.ok and "add contact zorro" in r.message and confirmer.requests == []
+    # A known contact still gets the card.
+    agent.run_tool(ToolCall("send_whatsapp", {"to": "ram sharma", "message": "hi"}))
+    assert len(confirmer.requests) == 1
 
 
 @pytest.mark.parametrize("text, args", [

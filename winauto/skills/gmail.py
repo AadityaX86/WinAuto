@@ -17,13 +17,14 @@ from winauto.adapters.gmail import (
 )
 from winauto.adapters.secrets import get_secret
 from winauto.core.context import Context
-from winauto.core.skill import QuickRule, Risk, Skill, ToolResult, fail, ok, tool
+from winauto.core.launcher import starts, template
+from winauto.core.skill import QuickRule, Risk, Skill, Suggestion, ToolResult, fail, ok, tool
 from winauto.skills.shared.contacts import EMAIL_RE, ContactBook
 
 log = logging.getLogger(__name__)
 
 SETUP_HELP = (
-    "Gmail isn't set up yet. Open Settings → Email and enter your Gmail address and an app password. "
+    "Gmail isn't set up yet. Open Settings → Accounts and enter your Gmail address and an app password. "
     "Create the app password at https://myaccount.google.com/apppasswords (it needs 2-Step Verification turned on)."
 )
 
@@ -115,6 +116,20 @@ class EmailSkill(Skill):
             body += "\n\n" + sig
         return body + "\n"
 
+    def precheck(self, tool_name: str, args: dict[str, Any]) -> ToolResult | None:
+        if tool_name not in ("send_email", "reply_email") or self._backend is not None:
+            return None
+        if self.ctx.config.email.address.strip() and get_secret(SECRET_NAME):
+            return None
+        # Keep the draft, so setting up Gmail doesn't mean writing it again.
+        draft = ""
+        if args.get("body"):
+            draft = "\n\nHere's the draft so you don't lose it:\n\n"
+            if args.get("subject"):
+                draft += f"**{args['subject']}**\n\n"
+            draft += str(args["body"])
+        return fail(SETUP_HELP + draft)
+
     def preview(self, tool_name: str, args: dict[str, Any]) -> str | None:
         if tool_name == "send_email":
             recipients, problems = self.resolve_recipients(str(args.get("to", "")))
@@ -133,8 +148,7 @@ class EmailSkill(Skill):
         "List recent emails in the inbox. Supports Gmail search words, e.g. 'from:ram', 'subject:invoice', 'newer_than:2d'.",
         params={"query": "Gmail search (optional)", "unread_only": "Only unread ones (default true)",
                 "limit": "How many (default 5)"},
-        final=False,
-    )
+        final=False, title="Check email: {query}")
     def check_email(self, query: str = "", unread_only: bool = True, limit: int = 5) -> ToolResult:
         try:
             backend = self.backend()
@@ -206,6 +220,15 @@ class EmailSkill(Skill):
         except EmailError as exc:
             return fail(str(exc))
         return ok(f"Replied to {getaddresses([reply_to])[0][0] or reply_to}.")
+
+    def suggest(self, query: str) -> list[Suggestion]:
+        if not starts(query, "email", "e-mail", "mail", "inbox", "gmail", "write an email", "send an email"):
+            return []
+        return [
+            Suggestion(title="Check my email", subtitle="Unread emails in Gmail", tool="check_email", args={},
+                       kind="Command", icon="mail", score=91),
+            template("Write an email…", "email ", "Type who and what, e.g. ram that I'm running late", "mail", 85),
+        ]
 
     def quick_rules(self) -> list[QuickRule]:
         return [
