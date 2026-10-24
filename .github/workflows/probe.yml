@@ -27,7 +27,7 @@ jobs:
           (Get-FileHash mmproj.gguf -Algorithm SHA256).Hash.ToLower()
           (Get-FileHash engine.zip -Algorithm SHA256).Hash.ToLower()
 
-      - name: Start the server
+      - name: Start the server, call tools, stream, read an image (one step: the server dies with its step)
         shell: pwsh
         run: |
           $args = "-m model.gguf --mmproj mmproj.gguf --host 127.0.0.1 --port 8765 -c 8192 -np 1 --jinja --reasoning-budget 0 --fit on --api-key secret --alias winauto"
@@ -38,9 +38,6 @@ jobs:
           }
           Get-Content server.log | Select-String -Pattern "fit|offload|layers|mmproj|error|warn|n_ctx|listening" | Select-Object -First 40
 
-      - name: Tool call, unauthorised call, streaming
-        shell: pwsh
-        run: |
           $hdr = @{ Authorization = "Bearer secret" }
           $tools = @(@{ type = "function"; function = @{ name = "set_volume"; description = "Set the PC's volume"; parameters = @{ type = "object"; properties = @{ level = @{ type = "integer"; description = "0-100" } }; required = @("level") } } },
                      @{ type = "function"; function = @{ name = "add_todo"; description = "Add a todo"; parameters = @{ type = "object"; properties = @{ task = @{ type = "string" }; due = @{ type = "string" } }; required = @("task") } } })
@@ -54,9 +51,6 @@ jobs:
           "--- streamed (first 25 lines)"
           ($raw.Content -split "`n" | Where-Object { $_ } | Select-Object -First 25) -join "`n"
 
-      - name: Read text from an image
-        shell: pwsh
-        run: |
           Add-Type -AssemblyName System.Drawing
           $bmp = New-Object System.Drawing.Bitmap 640, 240
           $g = [System.Drawing.Graphics]::FromImage($bmp)
