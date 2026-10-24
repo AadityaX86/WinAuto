@@ -1,0 +1,88 @@
+name: Probe (temporary)
+
+# Temporary: looks up llama.cpp and model files to pin in WinAuto's built-in AI.
+# Removed before merging.
+
+on:
+  push:
+    branches: [claude/awesome-darwin-0dcwv6]
+    paths: [.github/workflows/probe.yml]
+
+jobs:
+  lookup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: llama.cpp latest release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api repos/ggml-org/llama.cpp/releases/latest --jq '.tag_name, .published_at, (.assets[] | select(.name | test("win|ubuntu")) | "\(.size) \(.name) \(.digest)")'
+      - name: Model files on Hugging Face
+        run: |
+          for repo in Qwen/Qwen3-4B-GGUF Qwen/Qwen3-8B-GGUF Qwen/Qwen3-14B-GGUF unsloth/Qwen3-4B-Instruct-2507-GGUF unsloth/Qwen3-8B-GGUF ggml-org/Qwen2.5-VL-7B-Instruct-GGUF ggml-org/Qwen2.5-VL-3B-Instruct-GGUF ggml-org/gemma-3-4b-it-GGUF Qwen/Qwen3-0.6B-GGUF ggml-org/Qwen3-0.6B-GGUF; do
+            echo "=== $repo"
+            curl -s "https://huggingface.co/api/models/$repo/tree/main" | python3 -c "
+          import sys, json
+          try:
+              items = json.load(sys.stdin)
+          except Exception as e:
+              print('  error', e); sys.exit()
+          if isinstance(items, dict):
+              print('  ', items); sys.exit()
+          for f in items:
+              if f['path'].endswith('.gguf') and any(q in f['path'] for q in ('Q4_K_M', 'Q8_0', 'mmproj', 'f16')):
+                  lfs = f.get('lfs') or {}
+                  print(f\"  {f['size']:>12} {f['path']} sha256={lfs.get('oid', '?')}\")
+          "
+          done
+
+  windows-engine:
+    runs-on: windows-latest
+    steps:
+      - name: Download latest Vulkan and CPU builds
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = gh api repos/ggml-org/llama.cpp/releases/latest --jq .tag_name
+          Write-Host "tag $tag"
+          gh release download $tag -R ggml-org/llama.cpp -p "*bin-win-vulkan-x64.zip" -p "*bin-win-cpu-x64.zip" -D dl
+          Get-ChildItem dl | ForEach-Object { "{0} {1}" -f $_.Length, $_.Name }
+          Expand-Archive (Get-ChildItem dl\*vulkan*.zip).FullName -DestinationPath vk
+          Expand-Archive (Get-ChildItem dl\*cpu*.zip).FullName -DestinationPath cpu
+          Write-Host "--- vulkan zip contents"; Get-ChildItem -Recurse vk | ForEach-Object { "{0,12} {1}" -f $_.Length, $_.FullName.Replace((Get-Location).Path, '') }
+          Write-Host "--- cpu zip contents"; Get-ChildItem -Recurse cpu -Filter *.dll | ForEach-Object { "{0,12} {1}" -f $_.Length, $_.Name }
+      - name: Server version and flags
+        shell: pwsh
+        run: |
+          $srv = (Get-ChildItem -Recurse vk -Filter llama-server.exe | Select-Object -First 1).FullName
+          & $srv --version 2>&1 | Select-Object -First 20
+          $help = & $srv --help 2>&1 | Out-String
+          foreach ($flag in @("--jinja", "--reasoning-budget", "--reasoning-format", "--no-webui", "--mmproj", "-ngl", "--n-gpu-layers", "--ctx-size", "--port", "--host", "--chat-template-kwargs", "--flash-attn", "--fit", "--no-mmap", "--parallel", "--alias")) {
+            $line = ($help -split "`n" | Where-Object { $_ -match [regex]::Escape($flag) } | Select-Object -First 1)
+            "{0,-24} {1}" -f $flag, $(if ($line) { $line.Trim() } else { "(missing)" })
+          }
+      - name: Run a tiny model end to end (Vulkan build, no GPU here)
+        shell: pwsh
+        run: |
+          $srv = (Get-ChildItem -Recurse vk -Filter llama-server.exe | Select-Object -First 1).FullName
+          Invoke-WebRequest "https://huggingface.co/Qwen/Qwen3-0.6B-GGUF/resolve/main/Qwen3-0.6B-Q8_0.gguf" -OutFile tiny.gguf
+          $p = Start-Process $srv -ArgumentList "-m tiny.gguf --host 127.0.0.1 --port 8765 --jinja -ngl 99 -c 4096 --reasoning-budget 0" -RedirectStandardError server.log -RedirectStandardOutput server.out -PassThru -NoNewWindow
+          $ok = $false
+          for ($i = 0; $i -lt 90; $i++) {
+            Start-Sleep 2
+            try { $h = Invoke-RestMethod http://127.0.0.1:8765/health; if ($h.status -eq "ok") { $ok = $true; break } } catch {}
+            if ($p.HasExited) { break }
+          }
+          Write-Host "ready=$ok exited=$($p.HasExited)"
+          Get-Content server.log -Tail 40
+          if ($ok) {
+            $body = @{
+              model = "local"; stream = $false
+              messages = @(@{ role = "user"; content = "Set the volume to 30 percent." })
+              tools = @(@{ type = "function"; function = @{ name = "set_volume"; description = "Set the volume"; parameters = @{ type = "object"; properties = @{ level = @{ type = "integer" } }; required = @("level") } } })
+            } | ConvertTo-Json -Depth 10
+            $r = Invoke-RestMethod http://127.0.0.1:8765/v1/chat/completions -Method Post -Body $body -ContentType "application/json"
+            $r | ConvertTo-Json -Depth 10
+          }
+          Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue
