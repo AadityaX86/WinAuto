@@ -245,6 +245,16 @@ def tool(
     return deco
 
 
+@dataclass
+class QuickRule:
+    """A fast, offline shortcut: if `pattern` matches the whole command,
+    `handler(match)` returns (tool_name, args) to run without asking the AI.
+    Return None from the handler to let the AI deal with it instead."""
+
+    pattern: str
+    handler: Callable[[Any], tuple[str, dict[str, Any]] | None]
+
+
 class Skill:
     """Base class for a group of tools. Subclasses set `name` and add @tool methods."""
 
@@ -255,6 +265,15 @@ class Skill:
 
     def __init__(self, ctx: Any):
         self.ctx = ctx
+
+    def quick_rules(self) -> list[QuickRule]:
+        return []
+
+    def start(self) -> None:
+        """Called once when the app starts (warm caches, start timers...)."""
+
+    def stop(self) -> None:
+        """Called when the app quits."""
 
     def preview(self, tool_name: str, args: dict[str, Any]) -> str | None:
         """Override to give a friendly confirmation text for risky tools."""
