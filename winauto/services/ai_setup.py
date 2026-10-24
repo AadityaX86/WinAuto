@@ -187,8 +187,7 @@ class AISetup:
             pct = int(st.fraction * 100)
             return SetupView(
                 True, "Setting up your private AI",
-                f"Downloading {label} ({gb(st.total)}, only this once). Quick commands work meanwhile, "
-                "and the AI is ready as soon as this finishes.",
+                f"Downloading {label} ({gb(st.total)}, only this once). Quick commands work meanwhile.",
                 st.fraction, self._detail(st), "pause", "Pause", None, f"Downloading AI · {pct}%")
         if st.state == MISSING:
             size = gb(self.ai.missing_bytes())

@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from PySide6.QtCore import Qt, QTimer, Signal
-from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QProgressBar, QPushButton, QVBoxLayout
+from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QProgressBar, QPushButton, QSizePolicy, QVBoxLayout
 
 from winauto.ui.icons import pixmap
 from winauto.ui.theme import Palette
@@ -21,6 +21,8 @@ class SetupCard(QFrame):
         super().__init__()
         self.p = palette
         self.setObjectName("Card")
+        # Never squashed: the suggestions list below scrolls instead.
+        self.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
         h = QHBoxLayout(self)
         h.setContentsMargins(14, 12, 14, 12)
         h.setSpacing(12)

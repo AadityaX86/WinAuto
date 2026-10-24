@@ -365,7 +365,7 @@ class Controller(QObject):
     def dismiss_welcome(self) -> None:
         if self.runtime is not None:
             self.runtime.home.dismiss_welcome()
-        self.popup.home.welcome.hide()
+        self.popup.home.hide_welcome()
 
     def maybe_morning_briefing(self) -> None:
         if self.runtime is None or self._busy or self.popup.has_chat:
@@ -386,7 +386,7 @@ class Controller(QObject):
             config = self.runtime.config
             self.popup.home.welcome.show_welcome(pretty_hotkey(config.hotkey), config.start_with_windows)
         else:
-            self.popup.home.welcome.hide()
+            self.popup.home.hide_welcome()
         self.popup.home.refresh_greeting(home.user_name)
         self.popup.home.set_lists(home.suggestions(), home.recent())
         threading.Thread(target=self._collect_home_data, daemon=True, name="home").start()

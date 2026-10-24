@@ -34,9 +34,9 @@ python -m winauto
 
 ## 2. First run: WinAuto sets up its AI
 
-WinAuto opens with a short welcome message and puts an icon in the system tray (bottom right, near the clock; it may be under the **^** arrow).
+WinAuto opens and puts an icon in the system tray (bottom right, near the clock; it may be under the **^** arrow). A **Welcome** card on the home screen has two handy buttons: **Start with Windows**, so the shortcut works as soon as you sign in, and **Show examples**. Press **Got it** when you're done with it.
 
-On the home screen a card shows WinAuto **downloading its AI** (only this once). It picks the model that suits your graphics card: **Qwen3-VL 8B** (5.8 GB) for 8 GB cards and up, otherwise **Qwen3-VL 4B** (3.0 GB). Both chat, use WinAuto's tools and understand screenshots. The card shows progress and time left. **Pause** stops it, and it continues where it left off, even after a restart. Instant commands work while it downloads. When it's done the AI loads and the dot at the bottom left turns green.
+On the home screen a card shows WinAuto **downloading its AI** (only this once). It picks the model that suits your graphics card: **Qwen3-VL 8B** (5.8 GB) for 8 GB cards and up, otherwise **Qwen3-VL 4B** (3.0 GB). Both chat, use WinAuto's tools and understand screenshots. The card shows progress and time left. **Pause** stops it, and it continues where it left off, even after a restart. Instant commands work while it downloads. When it's done the AI loads, the dot at the bottom left turns green and Windows shows a "Your AI is ready" notification, so you can close the popup and carry on meanwhile.
 
 ![Downloading the AI](images/setup.png)
 
@@ -59,6 +59,9 @@ Press **Ctrl+Alt+Space** and type:
 | `what's the weather` | The weather where you are |
 | `who won the last football world cup?` | The AI searches the web and answers |
 | select text in any app, then **Ctrl+Alt+T** | Fix grammar, rewrite, translate, summarize |
+| `help` | Examples of everything you can type |
+
+Don't remember the wording? Type the first few letters, like `rem` or `email`, and pick a **Fill in** result: it starts the command for you ("remind me to …") with an example of how to finish it.
 
 ## 4. Make it yours
 

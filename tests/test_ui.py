@@ -252,3 +252,21 @@ def test_reopening_later_starts_over(qapp, ctx):
     popup._hidden_at -= 600  # ten minutes later
     controller.maybe_start_over()
     assert not popup.has_chat and popup.mode == "home"
+
+
+def test_first_run_cards_are_not_squashed(qapp, ctx):
+    """Welcome + AI download + a home chip on a first run: the cards keep their full height."""
+    from winauto.services.ai_setup import SetupView
+
+    popup, controller, _ = _app_popup(qapp, ctx)
+    popup.show_popup()
+    controller.refresh_home()
+    popup.show_setup(SetupView(True, "Setting up your private AI", "Downloading Qwen3-VL 8B (5.8 GB, only this "
+                               "once). Quick commands work meanwhile.", 0.4, "2.3 GB of 5.8 GB", "pause", "Pause"))
+    popup.home.set_widgets([("cloud", "18° Partly cloudy")])
+    wait_for(qapp, lambda: False, timeout=0.2)
+    for card in (popup.home.welcome, popup.home.setup):
+        assert card.isVisible() and card.height() >= card.heightForWidth(card.width()) - 1
+    assert popup.home.widgets_row.count() == 0  # the chips wait until the welcome card is put away
+    popup.home.welcome.done.click()
+    assert popup.home.widgets_row.count() > 0
