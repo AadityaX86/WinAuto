@@ -258,7 +258,7 @@ class Controller(QObject):
             return
         self._busy = False
         self.popup.set_busy(False)
-        step = Step(call.name, call.arguments, result)
+        step = Step(call.name, call.arguments, result, self.runtime.agent.describe(call) if self.runtime else "")
         if result.ok and call.name in COPY_TOOLS and not self.popup.has_chat:
             self.popup.flash("✓ Copied")
             QTimer.singleShot(650, lambda g=gen: self._auto_hide(g))

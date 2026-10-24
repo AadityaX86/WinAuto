@@ -16,6 +16,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Callable, Protocol
 
+from winauto.core.launcher import command_title
 from winauto.core.llm import LLMClient, LLMError, ToolCall
 from winauto.core.quick import QuickMatcher
 from winauto.core.registry import Registry
@@ -72,6 +73,7 @@ class Step:
     tool: str
     args: dict[str, Any]
     result: ToolResult
+    label: str = ""  # what it did, in plain words: "Set volume to 40%"
 
 
 @dataclass
@@ -172,7 +174,7 @@ class Agent:
             if call:
                 log.info("Quick command: %s %s", call.name, call.arguments)
                 result = self.run_tool(call)
-                step = Step(call.name, call.arguments, result)
+                step = Step(call.name, call.arguments, result, self.describe(call))
                 # A quick command that couldn't find its target (e.g. no app by that
                 # name) gets a second chance with the model, which may know what was meant.
                 if not (result.fallback and self.llm is not None):
@@ -222,7 +224,7 @@ class Agent:
                 repeated = repeated or key in seen_calls
                 seen_calls.add(key)
                 result = self.run_tool(call)
-                steps.append(Step(call.name, call.arguments, result))
+                steps.append(Step(call.name, call.arguments, result, self.describe(call)))
                 results.append((self.registry.get(call.name), result))
                 messages.append(
                     {
@@ -266,6 +268,10 @@ class Agent:
         chosen = [s for s in everything if s.name in names]
         log.info("Router picked %s", [s.name for s in chosen])
         return self.registry.with_always(chosen)
+
+    def describe(self, call: ToolCall) -> str:
+        """A tool call in plain words, e.g. "Open Notepad"."""
+        return command_title(call.name, call.arguments, self.registry.get(call.name))
 
     def run_tool(self, call: ToolCall) -> ToolResult:
         tool = self.registry.get(call.name)

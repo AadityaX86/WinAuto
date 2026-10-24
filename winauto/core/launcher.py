@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 import re
 import time
+from dataclasses import replace
 from datetime import datetime
 from typing import Any
 
@@ -111,12 +112,13 @@ class Launcher:
             results += found
 
         call = self.quick.match(text)
+        covered = False
         if call is not None:
             # A result that does exactly the instant command moves up; others make the command row redundant.
-            exact = [r for r in results if r.tool == call.name and _freeze(r.args) == _freeze(call.arguments)]
-            for r in exact:
-                r.score = max(r.score, 92)
-            covered = bool(exact) or any((r.tool == call.name and r.score >= 80) or r.score >= 95 for r in results)
+            same = (call.name, _freeze(call.arguments))
+            results = [replace(r, score=max(r.score, 92)) if (r.tool, _freeze(r.args)) == same else r for r in results]
+            covered = any((r.tool, _freeze(r.args)) == same or (r.tool == call.name and r.score >= 80) or r.score >= 95
+                          for r in results)
         if call is not None and not covered:
             tool = self.registry.get(call.name)
             owner = self.registry.skill(tool.skill) if tool else None

@@ -118,7 +118,7 @@ class ChatView(QScrollArea):
             marks = []
             for s in reply.steps:
                 mark = "✓" if s.result.ok else ("⊘" if s.result.cancelled else "✗")
-                marks.append(f"{mark} {s.tool.replace('_', ' ')}")
+                marks.append(f"{mark} {s.label or s.tool.replace('_', ' ')}")
             steps = make_label("   ".join(marks), object_name="Steps")
             row = self._row(steps)
             row.layout().setContentsMargins(34, 0, 0, 0)

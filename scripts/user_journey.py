@@ -50,7 +50,7 @@ def run(rt, text: str, expect: str | None = None, expect_tool: str | None = None
         line(f"!!  {text!r} crashed: {exc!r}")
         return
     took = time.monotonic() - started
-    steps = ", ".join(f"{s.tool}{'' if s.result.ok else ' (failed)'}" for s in reply.steps) or "-"
+    steps = ", ".join(f"{s.label or s.tool}{'' if s.result.ok else ' (failed)'}" for s in reply.steps) or "-"
     model = " +AI" if reply.used_model else ""
     line(f">>  {text!r}  [{took:.1f}s{model}] tools: {steps}")
     for row in (reply.text or "(no text)").splitlines()[:12]:
@@ -93,7 +93,7 @@ def instant(rt) -> None:
                  "open downloads", "find my resume pdf", "organize my downloads", "generate a password",
                  "what's on my clipboard", "clipboard history", "100 usd to npr", "define serendipity",
                  "wiki kathmandu", "news about cricket", "what's the weather in kathmandu",
-                 "help", "what can you do"]:
+                 "help", "what can you do", "help email", "whatsapp zorro: hi"]:
         run(rt, text)
 
 
@@ -137,7 +137,8 @@ def main() -> int:
          f"model picked: {rt.ai_setup.recommended().name}")
     launcher(rt, ["note", "notepad", "calc", "paint", "settings", "control panel", "task manager", "cmd",
                   "powershell", "edge", "explorer", "word", "blue", "wifi", "display", "volume", "vol 50",
-                  "remind", "todo", "help", "12*7", "shutdown", ":smile", "/report"])
+                  "remind", "rem", "timer", "todo", "mail", "whatsapp", "google cats", "help", "what can you do",
+                  "12*7", "shutdown", ":smile", "/report"])
     instant(rt)
     if "--ai" in sys.argv:
         ai(rt)
