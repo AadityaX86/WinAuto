@@ -220,7 +220,7 @@ class Agent:
         if tool.risk is Risk.CONFIRM:
             request = ConfirmRequest(
                 tool=tool.name,
-                title=tool.confirm_label,
+                title=tool.name.replace("_", " ").capitalize() + "?",
                 preview=tool.describe_call(args),
                 args=dict(args),
                 editable=tool.editable,

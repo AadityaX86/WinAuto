@@ -5,4 +5,4 @@ if "--cli" in sys.argv:
 else:
     from winauto.app import main
 
-main()
+sys.exit(main())
