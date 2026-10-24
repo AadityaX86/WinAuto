@@ -27,13 +27,13 @@ from PySide6.QtWidgets import (
 
 from winauto import __version__
 from winauto.config import Config
-from winauto.core.llm import OllamaClient, make_client
-from winauto.secrets import get_secret, set_secret
+from winauto.adapters.llm import OllamaClient, make_client
+from winauto.adapters.secrets import get_secret, set_secret
 from winauto.ui.async_util import run_async
 from winauto.ui.icons import icon
 from winauto.ui.theme import DARK, LIGHT, Palette, is_dark
 from winauto.ui.widgets import ToggleSwitch
-from winauto.winos.hotkey import parse_hotkey
+from winauto.adapters.winos.hotkey import parse_hotkey
 
 SUGGESTED_MODELS = ["qwen3:8b", "qwen3:14b", "qwen3:32b", "qwen2.5:7b", "llama3.1:8b", "mistral-nemo:12b"]
 VISION_MODELS = ["qwen2.5vl:7b", "gemma3:4b", "gemma3:12b", "llama3.2-vision:11b", "llava:7b"]

@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Callable
 
 from winauto.config import Config
-from winauto.storage.db import Database
+from winauto.adapters.storage.db import Database
 
 log = logging.getLogger(__name__)
 

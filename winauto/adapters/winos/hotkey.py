@@ -7,7 +7,7 @@ import logging
 import threading
 from typing import Callable
 
-from winauto.winos import IS_WINDOWS
+from winauto.adapters.winos import IS_WINDOWS
 
 log = logging.getLogger(__name__)
 

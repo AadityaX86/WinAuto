@@ -7,7 +7,7 @@ import shutil
 import subprocess
 from pathlib import Path
 
-from winauto.winos import CREATE_NO_WINDOW, IS_WINDOWS
+from winauto.adapters.winos import CREATE_NO_WINDOW, IS_WINDOWS
 
 
 def find_ollama() -> Path | None:

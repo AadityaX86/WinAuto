@@ -7,7 +7,7 @@ import re
 from typing import Any, Literal
 
 from winauto.core.skill import QuickRule, Risk, Skill, Suggestion, ToolResult, fail, ok, tool
-from winauto.winos import NotOnWindows
+from winauto.adapters.winos import NotOnWindows
 
 log = logging.getLogger(__name__)
 
@@ -61,7 +61,7 @@ class SystemSkill(Skill):
     def __init__(self, ctx: Any, backend: Any = None):
         super().__init__(ctx)
         if backend is None:
-            from winauto.winos.system import WindowsSystem
+            from winauto.adapters.winos.system import WindowsSystem
 
             backend = WindowsSystem()
         self.backend = backend

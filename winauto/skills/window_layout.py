@@ -3,13 +3,13 @@
 from __future__ import annotations
 
 import logging
-import os
 from pathlib import Path
 from typing import Any, Literal
 
 from winauto.core.skill import QuickRule, Skill, ToolResult, fail, ok, tool
-from winauto.winos import NotOnWindows
-from winauto.winos.folders import folder as known_folder
+from winauto.adapters.winos import NotOnWindows
+from winauto.adapters.winos.folders import folder as known_folder
+from winauto.adapters.winos.shell import open_app_uri
 
 log = logging.getLogger(__name__)
 
@@ -44,7 +44,7 @@ class WindowLayoutSkill(Skill):
     def __init__(self, ctx: Any, backend: Any = None, apps: Any = None):
         super().__init__(ctx)
         if backend is None:
-            from winauto.winos.windows import WindowsLayout
+            from winauto.adapters.winos.windows import WindowsLayout
 
             backend = WindowsLayout()
         self.backend = backend
@@ -109,7 +109,7 @@ class WindowLayoutSkill(Skill):
           params={"restore": "true to bring the windows back"})
     def show_desktop(self, restore: bool = False) -> ToolResult:
         try:
-            from winauto.winos.keyboard import press
+            from winauto.adapters.winos.keyboard import press
 
             press("win+shift+m" if restore else "win+m")
         except NotOnWindows as exc:
@@ -121,7 +121,8 @@ class WindowLayoutSkill(Skill):
     def take_screenshot(self, what: Literal["screen", "window", "snip"] = "screen") -> ToolResult:
         try:
             if what == "snip":
-                os.startfile("ms-screenclip:")  # type: ignore[attr-defined]
+                if not open_app_uri("ms-screenclip:"):
+                    return fail("Snipping needs the Windows Snipping Tool.")
                 return ok("Draw a box around what you want. It'll be copied to your clipboard.")
             hwnd = None
             if what == "window":

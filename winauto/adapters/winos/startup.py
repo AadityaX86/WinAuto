@@ -6,7 +6,7 @@ import logging
 import sys
 from pathlib import Path
 
-from winauto.winos import IS_WINDOWS
+from winauto.adapters.winos import IS_WINDOWS
 
 log = logging.getLogger(__name__)
 

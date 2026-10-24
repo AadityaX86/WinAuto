@@ -10,7 +10,7 @@ from winauto.skills.calendar import CalendarSkill, parse_ics
 from winauto.skills.focus import FocusSkill
 from winauto.skills.info import InfoSkill, parse_rss
 from winauto.skills.voice import VoiceSkill, speakable
-from winauto.winos.apps import WindowInfo
+from winauto.adapters.winos.apps import WindowInfo
 
 NOW = datetime(2026, 10, 24, 8, 30)  # Saturday morning
 

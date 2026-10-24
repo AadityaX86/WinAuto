@@ -76,8 +76,8 @@ def main(argv: list[str] | None = None) -> int:
     from winauto.ui.settings import SettingsDialog
     from winauto.ui.theme import app_icon, apply_palette, base_font, palette, stylesheet
     from winauto.ui.tray import Tray, pretty_hotkey
-    from winauto.winos.hotkey import HotkeyListener
-    from winauto.winos.startup import set_start_with_windows
+    from winauto.adapters.winos.hotkey import HotkeyListener
+    from winauto.adapters.winos.startup import set_start_with_windows
 
     config = load_config()
     icon = app_icon()
@@ -136,7 +136,7 @@ def main(argv: list[str] | None = None) -> int:
         # Remember the window you were in, so "snap this left" and "replace selection" know where to go.
         if sys.platform == "win32" and not popup.isVisible():
             try:
-                from winauto.winos.windows import WindowsLayout
+                from winauto.adapters.winos.windows import WindowsLayout
 
                 hwnd = WindowsLayout().foreground()
                 if hwnd and hwnd != popup_hwnd:
@@ -153,7 +153,7 @@ def main(argv: list[str] | None = None) -> int:
         selection = ""
         if sys.platform == "win32":
             try:
-                from winauto.winos.selection import capture_selection
+                from winauto.adapters.winos.selection import capture_selection
 
                 selection = capture_selection()
             except Exception:
@@ -223,7 +223,7 @@ def main(argv: list[str] | None = None) -> int:
             if ok:
                 return
             if try_start and "isn't running" in msg:
-                from winauto.winos.ollama import start_ollama
+                from winauto.adapters.winos.ollama import start_ollama
 
                 if start_ollama():
                     log.info("Started Ollama; checking again shortly")

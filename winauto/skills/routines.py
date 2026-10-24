@@ -11,7 +11,7 @@ from typing import Any
 from winauto.core.matching import normalize, rank
 from winauto.core.skill import QuickRule, Risk, Skill, Suggestion, ToolResult, fail, ok, tool
 from winauto.core.timeparse import parse_duration
-from winauto.storage.db import now_iso
+from winauto.adapters.storage.db import now_iso
 
 log = logging.getLogger(__name__)
 WAIT_RE = re.compile(r"(?:wait|pause|sleep)\s+(?:for\s+)?(?P<d>.+)", re.I)

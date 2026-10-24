@@ -5,13 +5,13 @@ from __future__ import annotations
 import logging
 import re
 import urllib.parse
-import webbrowser
 from typing import Any, Callable
 
 from winauto.core.matching import normalize
 from winauto.core.quick import is_simple
 from winauto.core.skill import QuickRule, Skill, Suggestion, ToolResult, fail, ok, tool
-from winauto.net import FetchError, fetch, fetch_json, html_to_text, strip_tags
+from winauto.adapters.http import FetchError, fetch, fetch_json, html_to_text, strip_tags
+from winauto.adapters.winos.shell import open_url
 
 log = logging.getLogger(__name__)
 
@@ -123,7 +123,7 @@ class WebSkill(Skill):
                  fetcher: Callable[..., tuple[str, str]] | None = None,
                  json_fetcher: Callable[..., Any] | None = None):
         super().__init__(ctx)
-        self._open = opener or webbrowser.open
+        self._open = opener or open_url
         self._fetch = fetcher or fetch
         self._fetch_json = json_fetcher or fetch_json
 

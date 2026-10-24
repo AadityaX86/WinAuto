@@ -5,7 +5,7 @@ from __future__ import annotations
 import base64
 import subprocess
 
-from winauto.winos import require_windows, run_hidden
+from winauto.adapters.winos import require_windows, run_hidden
 
 
 def run_powershell(script: str, timeout: float = 30) -> subprocess.CompletedProcess:

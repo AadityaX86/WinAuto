@@ -9,7 +9,7 @@ from collections import deque
 from typing import Any
 
 from winauto.core.skill import QuickRule, Skill, Suggestion, ToolResult, fail, ok, tool
-from winauto.winos import NotOnWindows
+from winauto.adapters.winos import NotOnWindows
 
 log = logging.getLogger(__name__)
 MAX_ITEMS = 25
@@ -30,7 +30,7 @@ class ClipboardSkill(Skill):
     def __init__(self, ctx: Any, backend: Any = None, watch: bool = True):
         super().__init__(ctx)
         if backend is None:
-            from winauto.winos.clipboard import WindowsClipboard
+            from winauto.adapters.winos.clipboard import WindowsClipboard
 
             backend = WindowsClipboard()
         self.backend = backend

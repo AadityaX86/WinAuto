@@ -109,7 +109,7 @@ def test_settings_dialog_collects_values(qapp):
 
 
 def test_hotkey_parsing():
-    from winauto.winos.hotkey import MOD_ALT, MOD_CONTROL, parse_hotkey
+    from winauto.adapters.winos.hotkey import MOD_ALT, MOD_CONTROL, parse_hotkey
 
     assert parse_hotkey("ctrl+alt+space") == (MOD_CONTROL | MOD_ALT, 0x20)
     assert parse_hotkey("Ctrl + Alt + K") == (MOD_CONTROL | MOD_ALT, ord("K"))
@@ -121,7 +121,6 @@ def test_hotkey_parsing():
 
 def test_launcher_flow(qapp, ctx):
     """Typing shows results; Enter runs the selected one; copy results flash and hide."""
-    from fakes import RecordingConfirmer
     from winauto.runtime import Runtime
     from winauto.ui.controller import Controller, QtConfirmer
     from winauto.ui.popup import PopupWindow

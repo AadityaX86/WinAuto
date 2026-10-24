@@ -6,7 +6,7 @@ import ctypes
 from datetime import datetime
 from pathlib import Path
 
-from winauto.winos import require_windows
+from winauto.adapters.winos import require_windows
 
 SW_MAXIMIZE, SW_MINIMIZE, SW_RESTORE = 3, 6, 9
 SWP_NOZORDER, SWP_NOACTIVATE = 0x0004, 0x0010
@@ -20,7 +20,7 @@ def _rect_type():
 
 class WindowsLayout:
     def _user32(self):
-        from winauto.winos.apps import _user32
+        from winauto.adapters.winos.apps import _user32
 
         u = _user32()
         from ctypes import wintypes

@@ -13,8 +13,8 @@ from typing import Any
 from winauto.core.matching import normalize, rank, score
 from winauto.core.quick import is_simple
 from winauto.core.skill import QuickRule, Risk, Skill, Suggestion, ToolResult, fail, ok, tool
-from winauto.winos import NotOnWindows
-from winauto.winos.apps import AppEntry, WindowInfo
+from winauto.adapters.winos import NotOnWindows
+from winauto.adapters.winos.apps import AppEntry, WindowInfo
 
 log = logging.getLogger(__name__)
 
@@ -89,7 +89,7 @@ class AppsSkill(Skill):
     def __init__(self, ctx: Any, backend: Any = None):
         super().__init__(ctx)
         if backend is None:
-            from winauto.winos.apps import WindowsApps
+            from winauto.adapters.winos.apps import WindowsApps
 
             backend = WindowsApps()
         self.backend = backend

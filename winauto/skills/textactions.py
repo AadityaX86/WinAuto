@@ -9,7 +9,7 @@ import time
 from typing import Any, Literal
 
 from winauto.core.skill import QuickRule, Skill, ToolResult, fail, ok, tool
-from winauto.winos import NotOnWindows
+from winauto.adapters.winos import NotOnWindows
 
 ACTIONS: dict[str, tuple[str, str, str]] = {
     # key: (button label, icon, instruction)
@@ -44,7 +44,7 @@ class TextActionsSkill(Skill):
 
     def clipboard(self):
         if self._clipboard is None:
-            from winauto.winos.clipboard import WindowsClipboard
+            from winauto.adapters.winos.clipboard import WindowsClipboard
 
             self._clipboard = WindowsClipboard()
         return self._clipboard
@@ -112,8 +112,8 @@ class TextActionsSkill(Skill):
         if callable(hide):
             hide()
         try:
-            from winauto.winos.apps import focus_window
-            from winauto.winos.keyboard import press
+            from winauto.adapters.winos.apps import focus_window
+            from winauto.adapters.winos.keyboard import press
 
             time.sleep(0.25)
             if not focus_window(hwnd):

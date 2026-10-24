@@ -6,8 +6,8 @@ import pytest
 
 from fakes import RecordingConfirmer, ScriptedLLM
 from test_phase3 import FakeClipboard
-from winauto.core.llm import OllamaClient, TokenGate
-from winauto.skills.memory import MemorySkill
+from winauto.adapters.llm import OllamaClient
+from winauto.core.llm import TokenGate
 from winauto.skills.textactions import TextActionsSkill
 from winauto.skills.vision import VisionSkill, encode_image
 
@@ -44,9 +44,9 @@ def test_ollama_streaming(monkeypatch):
     lines = [json.dumps({"message": {"content": "Sure, "}, "done": False}),
              json.dumps({"message": {"content": "here you go."}, "done": False}),
              json.dumps({"message": {"content": "", "tool_calls": [{"function": {"name": "x", "arguments": {}}}]}, "done": True})]
-    import winauto.core.llm as llm
+    import winauto.adapters.llm.ollama as llm
 
-    monkeypatch.setattr(llm, "_stream_lines", lambda url, payload, timeout, headers=None: iter(lines))
+    monkeypatch.setattr(llm, "stream_lines", lambda url, payload, timeout, headers=None: iter(lines))
     tokens = []
     reply = OllamaClient().chat([{"role": "user", "content": "hi"}], [{"type": "function", "function": {"name": "x"}}],
                                 on_token=tokens.append)
@@ -65,7 +65,7 @@ def test_agent_streams_and_marks_new_answers(runtime):
 def test_images_are_sent_to_ollama():
     msgs = OllamaClient._convert([{"role": "user", "content": "what?", "images": ["AAA"]}])
     assert msgs[0]["images"] == ["AAA"]
-    from winauto.core.llm import OpenAICompatClient
+    from winauto.adapters.llm import OpenAICompatClient
 
     msgs = OpenAICompatClient._convert([{"role": "user", "content": "what?", "images": ["AAA"]}])
     assert msgs[0]["content"][1]["image_url"]["url"] == "data:image/png;base64,AAA"

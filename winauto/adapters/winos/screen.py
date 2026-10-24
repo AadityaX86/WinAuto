@@ -1,10 +1,11 @@
-"""Reading a pixel's colour under the mouse."""
+"""Screen capture and reading a pixel's colour under the mouse."""
 
 from __future__ import annotations
 
 import ctypes
+from typing import Any
 
-from winauto.winos import require_windows
+from winauto.adapters.winos import require_windows
 
 
 def color_under_cursor() -> tuple[int, int, int]:
@@ -26,3 +27,18 @@ def color_under_cursor() -> tuple[int, int, int]:
     if value == 0xFFFFFFFF:
         raise OSError("Couldn't read that pixel.")
     return value & 0xFF, (value >> 8) & 0xFF, (value >> 16) & 0xFF
+
+
+def capture(hwnd: int | None = None) -> Any:
+    """A PIL image of all screens, or of one window."""
+    from PIL import ImageGrab
+
+    require_windows("Screen capture")
+    if hwnd:
+        import ctypes
+        from ctypes import wintypes
+
+        rect = wintypes.RECT()
+        ctypes.windll.user32.GetWindowRect(wintypes.HWND(hwnd), ctypes.byref(rect))
+        return ImageGrab.grab(bbox=(rect.left, rect.top, rect.right, rect.bottom), all_screens=True)
+    return ImageGrab.grab(all_screens=True)

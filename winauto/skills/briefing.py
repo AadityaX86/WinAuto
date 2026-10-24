@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Any, Callable
 
 from winauto.core.skill import QuickRule, Skill, ToolResult, ok, tool

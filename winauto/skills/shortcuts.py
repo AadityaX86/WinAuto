@@ -5,14 +5,14 @@ from __future__ import annotations
 import re
 import time
 import urllib.parse
-import webbrowser
 from datetime import datetime
 from typing import Any, Callable
 
 from winauto.core.matching import normalize, rank
 from winauto.core.skill import QuickRule, Risk, Skill, Suggestion, ToolResult, fail, ok, tool
-from winauto.storage.db import now_iso
-from winauto.winos import NotOnWindows
+from winauto.adapters.storage.db import now_iso
+from winauto.adapters.winos import NotOnWindows
+from winauto.adapters.winos.shell import open_url
 
 
 def fill_placeholders(text: str, clipboard: Callable[[], str | None] | None = None) -> str:
@@ -39,7 +39,7 @@ class ShortcutsSkill(Skill):
     def __init__(self, ctx: Any, opener: Callable[[str], Any] | None = None, clipboard: Any = None,
                  paste: Callable[[], None] | None = None):
         super().__init__(ctx)
-        self._open = opener or webbrowser.open
+        self._open = opener or open_url
         self._clipboard = clipboard
         self._paste = paste
 
@@ -49,7 +49,7 @@ class ShortcutsSkill(Skill):
 
     def clipboard(self):
         if self._clipboard is None:
-            from winauto.winos.clipboard import WindowsClipboard
+            from winauto.adapters.winos.clipboard import WindowsClipboard
 
             self._clipboard = WindowsClipboard()
         return self._clipboard
@@ -141,8 +141,8 @@ class ShortcutsSkill(Skill):
             return False
         if callable(hide):
             hide()
-        from winauto.winos.apps import focus_window
-        from winauto.winos.keyboard import press
+        from winauto.adapters.winos.apps import focus_window
+        from winauto.adapters.winos.keyboard import press
 
         time.sleep(0.25)
         if not focus_window(hwnd):

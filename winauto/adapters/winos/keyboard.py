@@ -6,8 +6,8 @@ import ctypes
 import logging
 import time
 
-from winauto.winos import require_windows
-from winauto.winos.hotkey import KEYS, MODIFIERS
+from winauto.adapters.winos import require_windows
+from winauto.adapters.winos.hotkey import KEYS, MODIFIERS
 
 log = logging.getLogger(__name__)
 
@@ -105,7 +105,7 @@ def _utf16_units(text: str) -> list[int]:
 
 def foreground_exe() -> str:
     require_windows("Checking the active window")
-    from winauto.winos.apps import _exe_of, _pid_of, _user32
+    from winauto.adapters.winos.apps import _exe_of, _pid_of, _user32
 
     hwnd = _user32().GetForegroundWindow()
     return _exe_of(_pid_of(hwnd)) if hwnd else ""
@@ -114,7 +114,7 @@ def foreground_exe() -> str:
 def wait_for_window(exe_names: set[str], timeout: float = 15.0, title_contains: str = "") -> int | None:
     """Wait until an app window from one of `exe_names` is open. Returns its handle."""
     require_windows("Waiting for an app")
-    from winauto.winos.apps import list_windows
+    from winauto.adapters.winos.apps import list_windows
 
     deadline = time.time() + timeout
     while time.time() < deadline:
@@ -126,7 +126,7 @@ def wait_for_window(exe_names: set[str], timeout: float = 15.0, title_contains: 
 
 
 def bring_to_front(hwnd: int, exe_names: set[str], tries: int = 3) -> bool:
-    from winauto.winos.apps import focus_window
+    from winauto.adapters.winos.apps import focus_window
 
     for _ in range(tries):
         focus_window(hwnd)

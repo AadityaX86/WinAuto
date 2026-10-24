@@ -10,21 +10,21 @@ pytestmark = pytest.mark.skipif(sys.platform != "win32", reason="Windows only")
 
 
 def test_powershell_runs():
-    from winauto.winos.powershell import run_powershell
+    from winauto.adapters.winos.powershell import run_powershell
 
     r = run_powershell("Write-Output ('a' + 'b')")
     assert r.returncode == 0 and r.stdout.strip() == "ab"
 
 
 def test_list_windows_does_not_crash():
-    from winauto.winos.apps import list_windows
+    from winauto.adapters.winos.apps import list_windows
 
     for w in list_windows():
         assert isinstance(w.hwnd, int) and isinstance(w.title, str)
 
 
 def test_installed_apps():
-    from winauto.winos.apps import WindowsApps
+    from winauto.adapters.winos.apps import WindowsApps
 
     apps = WindowsApps().installed()
     assert isinstance(apps, list)
@@ -34,7 +34,7 @@ def test_installed_apps():
 
 
 def test_registry_reads():
-    from winauto.winos.system import WindowsSystem
+    from winauto.adapters.winos.system import WindowsSystem
 
     assert isinstance(WindowsSystem().is_dark_mode(), bool)
     count, size = WindowsSystem().recycle_bin()
@@ -42,7 +42,7 @@ def test_registry_reads():
 
 
 def test_hotkey_register_and_stop():
-    from winauto.winos.hotkey import HotkeyListener
+    from winauto.adapters.winos.hotkey import HotkeyListener
 
     listener = HotkeyListener("ctrl+alt+shift+f12", lambda: None)
     started = listener.start()
@@ -52,7 +52,7 @@ def test_hotkey_register_and_stop():
 
 
 def test_start_with_windows_roundtrip():
-    from winauto.winos.startup import set_start_with_windows, starts_with_windows
+    from winauto.adapters.winos.startup import set_start_with_windows, starts_with_windows
 
     before = starts_with_windows()
     try:

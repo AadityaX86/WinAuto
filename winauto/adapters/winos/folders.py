@@ -7,7 +7,7 @@ import os
 import uuid
 from pathlib import Path
 
-from winauto.winos import IS_WINDOWS
+from winauto.adapters.winos import IS_WINDOWS
 
 KNOWN_FOLDER_IDS = {
     "desktop": "B4BFCC3A-DB2C-424C-B029-7FE99A87C641",

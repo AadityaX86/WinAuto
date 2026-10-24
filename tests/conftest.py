@@ -1,4 +1,3 @@
-import os
 import sys
 from pathlib import Path
 
@@ -18,7 +17,7 @@ def _isolated_home(tmp_path, monkeypatch):
 def ctx(tmp_path):
     from winauto.config import Config
     from winauto.core.context import Context
-    from winauto.storage.db import Database
+    from winauto.adapters.storage.db import Database
 
     notes = []
     c = Context(config=Config(), db=Database(":memory:"), data_dir=tmp_path,

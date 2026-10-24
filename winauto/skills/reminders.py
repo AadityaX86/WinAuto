@@ -13,7 +13,7 @@ from typing import Any, Callable, Literal
 from winauto.core.matching import rank
 from winauto.core.skill import QuickRule, Skill, ToolResult, fail, ok, tool
 from winauto.core.timeparse import describe, find_when, parse_duration, parse_when
-from winauto.storage.db import now_iso
+from winauto.adapters.storage.db import now_iso
 
 log = logging.getLogger(__name__)
 

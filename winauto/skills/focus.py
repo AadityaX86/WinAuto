@@ -9,8 +9,8 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import Any, Callable
 
-from winauto.core.skill import QuickRule, Skill, ToolResult, fail, ok, tool
-from winauto.winos import NotOnWindows
+from winauto.core.skill import QuickRule, Skill, ToolResult, ok, tool
+from winauto.adapters.winos import NotOnWindows
 
 log = logging.getLogger(__name__)
 
@@ -99,7 +99,7 @@ class FocusSkill(Skill):
                 continue
             for w in windows:
                 try:
-                    from winauto.winos.windows import WindowsLayout
+                    from winauto.adapters.winos.windows import WindowsLayout
 
                     WindowsLayout().show(w.hwnd, 6)  # minimise
                 except Exception:

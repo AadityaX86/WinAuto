@@ -5,7 +5,7 @@ from __future__ import annotations
 import ctypes
 import time
 
-from winauto.winos import require_windows
+from winauto.adapters.winos import require_windows
 
 CF_UNICODETEXT = 13
 GMEM_MOVEABLE = 0x0002

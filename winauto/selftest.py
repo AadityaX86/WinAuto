@@ -67,8 +67,8 @@ def main() -> int:
     def windows_layer():
         if sys.platform != "win32":
             return "skipped (not Windows)"
-        from winauto.winos.apps import list_windows
-        from winauto.winos.powershell import run_powershell
+        from winauto.adapters.winos.apps import list_windows
+        from winauto.adapters.winos.powershell import run_powershell
 
         out = run_powershell("Write-Output ok").stdout.strip()
         assert out == "ok", out

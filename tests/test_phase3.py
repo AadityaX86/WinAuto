@@ -15,7 +15,7 @@ from winauto.skills.discord import DiscordSkill
 from winauto.skills.files import FilesSkill, kind_of
 from winauto.skills.media import MediaSkill, first_youtube_video
 from winauto.skills.window_layout import WindowLayoutSkill, layout_rect
-from winauto.winos.apps import WindowInfo
+from winauto.adapters.winos.apps import WindowInfo
 
 
 # ---------------- discord ----------------
@@ -170,8 +170,8 @@ class FakeMedia:
     def __init__(self):
         self.keys, self.opened = [], []
 
-    def press(self, vk):
-        self.keys.append(vk)
+    def control(self, action):
+        self.keys.append(action)
 
     def now_playing(self):
         return {"title": "Blinding Lights", "artist": "The Weeknd", "app": "Spotify.exe", "status": "Playing"}
@@ -184,7 +184,7 @@ def test_media(ctx):
     backend = FakeMedia()
     yt_html = 'xx"videoRenderer":{"videoId":"dQw4w9WgXcQ","thumb"'
     skill = MediaSkill(ctx, backend, fetcher=lambda url, **kw: (yt_html, url))
-    assert skill.play_pause().ok and backend.keys == [0xB3]
+    assert skill.play_pause().ok and backend.keys == ["play_pause"]
     assert skill.now_playing().message == "🎵 Blinding Lights by The Weeknd, in Spotify."
     r = skill.play_music("lofi beats")
     assert r.message == "Playing “lofi beats” on YouTube." and backend.opened[-1].endswith("v=dQw4w9WgXcQ")

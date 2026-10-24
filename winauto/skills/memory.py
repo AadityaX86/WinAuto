@@ -2,11 +2,10 @@
 
 from __future__ import annotations
 
-from typing import Any
 
 from winauto.core.matching import rank
 from winauto.core.skill import QuickRule, Skill, ToolResult, fail, ok, tool
-from winauto.storage.db import now_iso
+from winauto.adapters.storage.db import now_iso
 
 MAX_IN_PROMPT = 25
 

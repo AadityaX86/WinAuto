@@ -15,8 +15,8 @@ from pathlib import Path
 from typing import Any, Callable
 
 from winauto.core.skill import QuickRule, Risk, Skill, Suggestion, ToolResult, fail, ok, tool
-from winauto.net import FetchError, fetch
-from winauto.winos import NotOnWindows, run_hidden
+from winauto.adapters.http import FetchError, fetch
+from winauto.adapters.winos import NotOnWindows, run_hidden
 
 log = logging.getLogger(__name__)
 
@@ -133,7 +133,7 @@ class ToolsSkill(Skill):
 
     def clipboard(self):
         if self._clipboard is None:
-            from winauto.winos.clipboard import WindowsClipboard
+            from winauto.adapters.winos.clipboard import WindowsClipboard
 
             self._clipboard = WindowsClipboard()
         return self._clipboard
@@ -177,7 +177,7 @@ class ToolsSkill(Skill):
             hide()
         time.sleep(max(0, min(delay_seconds, 10)))
         try:
-            from winauto.winos.screen import color_under_cursor
+            from winauto.adapters.winos.screen import color_under_cursor
 
             rgb = color_under_cursor()
         except (NotOnWindows, OSError) as exc:

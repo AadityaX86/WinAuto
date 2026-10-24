@@ -12,7 +12,7 @@ from winauto.core.agent import AgentReply, ConfirmRequest, Decision, Step
 from winauto.core.launcher import ASK_TOOL
 from winauto.core.llm import ToolCall
 from winauto.core.skill import Suggestion, ToolResult
-from winauto.storage.db import now_iso
+from winauto.adapters.storage.db import now_iso
 from winauto.ui.popup import ConfirmCard, PopupWindow
 
 log = logging.getLogger(__name__)
@@ -333,7 +333,7 @@ class Controller(QObject):
 
         def press() -> None:
             try:
-                from winauto.winos.keyboard import press as press_keys
+                from winauto.adapters.winos.keyboard import press as press_keys
 
                 press_keys("win+h")
             except Exception:

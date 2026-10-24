@@ -2,61 +2,17 @@
 
 from __future__ import annotations
 
-import json
 import logging
-import os
 import re
 import urllib.parse
-import webbrowser
 from typing import Any, Callable, Literal
 
 from winauto.core.skill import QuickRule, Skill, ToolResult, fail, ok, tool
-from winauto.net import FetchError, fetch
-from winauto.winos import NotOnWindows, require_windows
+from winauto.adapters.http import FetchError, fetch
+from winauto.adapters.winos import NotOnWindows
+from winauto.adapters.winos.media import WindowsMedia
 
 log = logging.getLogger(__name__)
-
-VK_MEDIA_NEXT, VK_MEDIA_PREV, VK_MEDIA_STOP, VK_MEDIA_PLAY_PAUSE = 0xB0, 0xB1, 0xB2, 0xB3
-
-NOW_PLAYING_SCRIPT = r"""
-[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
-Add-Type -AssemblyName System.Runtime.WindowsRuntime
-$asTaskGeneric = ([System.WindowsRuntimeSystemExtensions].GetMethods() | Where-Object {
-  $_.Name -eq 'AsTask' -and $_.GetParameters().Count -eq 1 -and $_.GetParameters()[0].ParameterType.Name -eq 'IAsyncOperation`1' })[0]
-function Await($task, $type) {
-  $t = $asTaskGeneric.MakeGenericMethod($type).Invoke($null, @($task)); $t.Wait(-1) | Out-Null; $t.Result }
-[Windows.Media.Control.GlobalSystemMediaTransportControlsSessionManager, Windows.Media.Control, ContentType=WindowsRuntime] | Out-Null
-$mgr = Await ([Windows.Media.Control.GlobalSystemMediaTransportControlsSessionManager]::RequestAsync()) ([Windows.Media.Control.GlobalSystemMediaTransportControlsSessionManager])
-$s = $mgr.GetCurrentSession()
-if (-not $s) { Write-Output '{}'; exit }
-$p = Await ($s.TryGetMediaPropertiesAsync()) ([Windows.Media.Control.GlobalSystemMediaTransportControlsSessionMediaProperties])
-$info = $s.GetPlaybackInfo()
-@{ title = $p.Title; artist = $p.Artist; album = $p.AlbumTitle; app = $s.SourceAppUserModelId; status = "$($info.PlaybackStatus)" } | ConvertTo-Json -Compress
-"""
-
-
-class WindowsMedia:
-    def press(self, vk: int) -> None:
-        require_windows("Media keys")
-        from winauto.winos.system import press_key
-
-        press_key(vk)
-
-    def now_playing(self) -> dict[str, str]:
-        from winauto.winos.powershell import run_powershell
-
-        r = run_powershell(NOW_PLAYING_SCRIPT, timeout=20)
-        try:
-            return json.loads(r.stdout.strip() or "{}")
-        except ValueError:
-            return {}
-
-    def open(self, target: str) -> None:
-        if target.startswith("spotify:") and hasattr(os, "startfile"):
-            os.startfile(target)  # type: ignore[attr-defined]
-        else:
-            webbrowser.open(target)
-
 
 def first_youtube_video(html: str) -> str | None:
     m = re.search(r'"videoRenderer":\{"videoId":"([\w-]{11})"', html) or re.search(r'"videoId":"([\w-]{11})"', html)
@@ -82,24 +38,24 @@ class MediaSkill(Skill):
         self.backend = backend or WindowsMedia()
         self._fetch = fetcher or fetch
 
-    def _key(self, vk: int, message: str) -> ToolResult:
+    def _control(self, action: str, message: str) -> ToolResult:
         try:
-            self.backend.press(vk)
+            self.backend.control(action)
         except NotOnWindows as exc:
             return fail(str(exc))
         return ok(message)
 
     @tool("Pause or resume whatever is playing (music, videos).")
     def play_pause(self) -> ToolResult:
-        return self._key(VK_MEDIA_PLAY_PAUSE, "⏯ Done.")
+        return self._control("play_pause", "⏯ Done.")
 
     @tool("Skip to the next track.")
     def next_track(self) -> ToolResult:
-        return self._key(VK_MEDIA_NEXT, "⏭ Next track.")
+        return self._control("next", "⏭ Next track.")
 
     @tool("Go back to the previous track.")
     def previous_track(self) -> ToolResult:
-        return self._key(VK_MEDIA_PREV, "⏮ Previous track.")
+        return self._control("previous", "⏮ Previous track.")
 
     @tool("What song or video is playing right now.")
     def now_playing(self) -> ToolResult:

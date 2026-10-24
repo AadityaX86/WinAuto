@@ -12,8 +12,8 @@ import time
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
-from winauto.winos import CREATE_NO_WINDOW, IS_WINDOWS, require_windows
-from winauto.winos.powershell import run_powershell
+from winauto.adapters.winos import CREATE_NO_WINDOW, require_windows
+from winauto.adapters.winos.powershell import run_powershell
 
 log = logging.getLogger(__name__)
 
@@ -98,7 +98,7 @@ def appid_path(app_id: str) -> str:
     m = re.match(r"^\{([0-9A-Fa-f-]{36})\}\\(.+)$", app_id or "")
     if m:
         try:
-            from winauto.winos.folders import _known_folder
+            from winauto.adapters.winos.folders import _known_folder
 
             base = _known_folder(m.group(1))
         except (OSError, AttributeError):  # AttributeError: not on Windows

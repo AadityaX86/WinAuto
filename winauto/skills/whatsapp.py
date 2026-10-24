@@ -3,45 +3,15 @@
 from __future__ import annotations
 
 import logging
-import os
 import re
-import time
-import urllib.parse
-import webbrowser
 from typing import Any
 
 from winauto.core.skill import QuickRule, Risk, Skill, ToolResult, fail, ok, tool
 from winauto.skills.contacts import ContactBook, normalize_phone
-from winauto.winos import NotOnWindows
+from winauto.adapters.winos import NotOnWindows
+from winauto.adapters.winos.whatsapp import WhatsAppDesktop
 
 log = logging.getLogger(__name__)
-
-WHATSAPP_EXES = {"whatsapp", "whatsapp.root"}
-
-
-class WhatsAppDesktop:
-    def open_chat(self, phone: str, text: str) -> str:
-        """Opens the chat with `text` typed in. Returns 'desktop' or 'web'."""
-        query = f"phone={phone}" + (f"&text={urllib.parse.quote(text)}" if text else "")
-        try:
-            os.startfile("whatsapp://send?" + query)  # type: ignore[attr-defined]
-            return "desktop"
-        except (OSError, AttributeError):
-            webbrowser.open("https://web.whatsapp.com/send?" + query)
-            return "web"
-
-    def press_send(self, timeout: float = 15.0) -> bool:
-        from winauto.winos.keyboard import bring_to_front, press, wait_for_window
-
-        hwnd = wait_for_window(WHATSAPP_EXES, timeout)
-        if not hwnd:
-            return False
-        time.sleep(2.0)  # let the chat load and the text land in the box
-        if not bring_to_front(hwnd, WHATSAPP_EXES):
-            return False
-        press("enter")
-        return True
-
 
 class WhatsAppSkill(Skill):
     name = "whatsapp"

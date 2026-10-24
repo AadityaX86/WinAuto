@@ -9,7 +9,7 @@ from typing import Any, Literal
 
 from winauto.core.matching import normalize, rank
 from winauto.core.skill import QuickRule, Risk, Skill, Suggestion, ToolResult, fail, ok, tool
-from winauto.storage.db import now_iso
+from winauto.adapters.storage.db import now_iso
 
 EMAIL_RE = re.compile(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+")
 PHONE_RE = re.compile(r"\+?\d[\d\s().-]{6,}\d")

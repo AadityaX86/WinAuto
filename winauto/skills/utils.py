@@ -11,7 +11,6 @@ import operator
 import re
 from datetime import datetime
 from functools import lru_cache
-from typing import Any
 
 from winauto.core.matching import normalize
 from winauto.core.skill import QuickRule, Skill, Suggestion, ToolResult, fail, ok, tool

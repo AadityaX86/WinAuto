@@ -4,7 +4,7 @@ import pytest
 
 from winauto.core.quick import QuickMatcher
 from winauto.core.registry import Registry
-from winauto.net import FetchError, html_to_text
+from winauto.adapters.http import FetchError, html_to_text
 from winauto.skills.apps import AppsSkill
 from winauto.skills.notes import NotesSkill
 from winauto.skills.utils import UtilsSkill, calculate_expression, convert, format_number

@@ -7,8 +7,8 @@ import logging
 import os
 import time
 
-from winauto.winos import require_windows, run_hidden
-from winauto.winos.powershell import run_powershell
+from winauto.adapters.winos import require_windows, run_hidden
+from winauto.adapters.winos.powershell import run_powershell
 
 log = logging.getLogger(__name__)
 

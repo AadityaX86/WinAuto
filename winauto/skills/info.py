@@ -11,7 +11,7 @@ from email.utils import parsedate_to_datetime
 from typing import Any, Callable
 
 from winauto.core.skill import QuickRule, Skill, ToolResult, fail, ok, tool
-from winauto.net import FetchError, fetch, fetch_json, strip_tags
+from winauto.adapters.http import FetchError, fetch, fetch_json, strip_tags
 
 CURRENCY_WORDS = {
     "dollar": "USD", "dollars": "USD", "usd": "USD", "bucks": "USD", "euro": "EUR", "euros": "EUR",

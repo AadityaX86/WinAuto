@@ -6,7 +6,6 @@ from fakes import RecordingConfirmer, ScriptedLLM
 from test_apps import FakeWindowsApps
 from test_phase3 import FakeClipboard
 from winauto.core.launcher import ASK_TOOL
-from winauto.skills.apps import AppsSkill
 from winauto.skills.shortcuts import ShortcutsSkill, fill_placeholders
 from winauto.skills.tools import ToolsSkill, color_formats, make_password, parse_color, search_emoji
 

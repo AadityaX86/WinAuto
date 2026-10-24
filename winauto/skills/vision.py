@@ -10,7 +10,8 @@ from pathlib import Path
 from typing import Any, Callable, Literal
 
 from winauto.core.skill import QuickRule, Skill, ToolResult, fail, ok, tool
-from winauto.winos import NotOnWindows
+from winauto.adapters.winos import NotOnWindows
+from winauto.adapters.winos.screen import capture
 
 log = logging.getLogger(__name__)
 MAX_SIDE = 1600
@@ -30,22 +31,6 @@ def encode_image(image: Any) -> str:
     return base64.b64encode(buf.getvalue()).decode("ascii")
 
 
-def _grab(hwnd: int | None) -> Any:
-    from PIL import ImageGrab
-
-    from winauto.winos import require_windows
-
-    require_windows("Screen capture")
-    if hwnd:
-        import ctypes
-        from ctypes import wintypes
-
-        rect = wintypes.RECT()
-        ctypes.windll.user32.GetWindowRect(wintypes.HWND(hwnd), ctypes.byref(rect))
-        return ImageGrab.grab(bbox=(rect.left, rect.top, rect.right, rect.bottom), all_screens=True)
-    return ImageGrab.grab(all_screens=True)
-
-
 class VisionSkill(Skill):
     name = "vision"
     description = "Answer questions about the screen or an image (local vision model)."
@@ -55,7 +40,7 @@ class VisionSkill(Skill):
 
     def __init__(self, ctx: Any, grabber: Callable[[int | None], Any] | None = None):
         super().__init__(ctx)
-        self._grab = grabber or _grab
+        self._grab = grabber or capture
 
     def _ask(self, question: str, image_b64: str) -> ToolResult:
         complete = self.ctx.services.get("complete")

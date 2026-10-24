@@ -15,7 +15,8 @@ from rapidfuzz import fuzz
 
 from winauto.core.matching import normalize
 from winauto.core.skill import QuickRule, Risk, Skill, Suggestion, ToolResult, fail, ok, tool
-from winauto.winos.folders import folder as known_folder
+from winauto.adapters.winos.folders import folder as known_folder
+from winauto.adapters.winos.shell import open_target
 
 log = logging.getLogger(__name__)
 
@@ -94,7 +95,7 @@ class FilesSkill(Skill):
                  trash: Callable[[str], Any] | None = None):
         super().__init__(ctx)
         self._roots = roots
-        self._open = opener or _default_open
+        self._open = opener or open_target
         self._trash = trash or _default_trash
 
     # ----- helpers -----
@@ -394,13 +395,6 @@ def _free_name(path: Path) -> Path:
     return path.with_name(f"{path.stem} ({int(time.time())}){path.suffix}")
 
 
-def _default_open(target: str) -> None:
-    if hasattr(os, "startfile"):
-        os.startfile(target)  # type: ignore[attr-defined]
-    else:
-        import subprocess
-
-        subprocess.Popen(["xdg-open", target])
 
 
 def _default_trash(path: str) -> None:

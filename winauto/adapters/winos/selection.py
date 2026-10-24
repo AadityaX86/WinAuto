@@ -6,7 +6,7 @@ import ctypes
 import logging
 import time
 
-from winauto.winos import require_windows
+from winauto.adapters.winos import require_windows
 
 log = logging.getLogger(__name__)
 
@@ -26,8 +26,8 @@ def _wait_for_modifiers_released(timeout: float = 1.5) -> None:
 def capture_selection(timeout: float = 0.8) -> str:
     """Copy the current selection and return it ("" if nothing was selected)."""
     require_windows("Reading the selection")
-    from winauto.winos.clipboard import WindowsClipboard
-    from winauto.winos.keyboard import press
+    from winauto.adapters.winos.clipboard import WindowsClipboard
+    from winauto.adapters.winos.keyboard import press
 
     clip = WindowsClipboard()
     try:

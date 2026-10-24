@@ -11,8 +11,8 @@ from typing import Any, Callable
 
 from winauto.core.skill import QuickRule, Risk, Skill, ToolResult, fail, ok, tool
 from winauto.core.timeparse import describe, parse_when
-from winauto.net import FetchError, fetch
-from winauto.storage.db import now_iso
+from winauto.adapters.http import FetchError, fetch
+from winauto.adapters.storage.db import now_iso
 
 log = logging.getLogger(__name__)
 WEEKDAY_CODES = ["MO", "TU", "WE", "TH", "FR", "SA", "SU"]

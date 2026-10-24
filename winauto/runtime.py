@@ -9,11 +9,12 @@ from winauto.config import Config, load_config, save_config
 from winauto.core.agent import Agent, Confirmer
 from winauto.core.context import Context
 from winauto.core.launcher import Launcher
-from winauto.core.llm import LLMClient, make_client
+from winauto.adapters.llm import make_client
+from winauto.core.llm import LLMClient
 from winauto.core.quick import QuickMatcher
 from winauto.paths import data_dir, db_path
 from winauto.skills import build_registry
-from winauto.storage.db import Database
+from winauto.adapters.storage.db import Database
 
 log = logging.getLogger(__name__)
 
