@@ -388,7 +388,9 @@ class AppsSkill(Skill):
 
         def close(m):
             target = m["t"]
-            if not is_simple(target) or normalize(target) in ("down", "it", "this", "everything", "all"):
+            norm = normalize(target)
+            if not is_simple(target) or norm in ("down", "it", "this", "everything", "all") \
+                    or norm.startswith("all ") or re.search(r"\btabs?\b", norm):
                 return None
             return "close_app", {"name": target}
 

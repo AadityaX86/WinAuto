@@ -284,7 +284,9 @@ class WebSkill(Skill):
             QuickRule(r"(?P<site>youtube|yt)\s+(?P<q>.+)", site_search, priority=45),
             QuickRule(r"(?:directions\s+to|where\s+is|show\s+me)\s+(?P<q>.+?)\s+on\s+(?P<site>maps|google maps|map)", site_search, priority=45),
             QuickRule(r"(?:search|google|bing|look up|lookup)\s+(?:for\s+|up\s+)?(?P<q>.+)",
-                      lambda m: ("search_web", {"query": m["q"], "open_in_browser": True}), priority=70),
+                      lambda m: None if re.match(r"(?:in\s+|through\s+)?(?:my|the)\s+(?:e-?mails?|inbox|gmail|notes?|files?|"
+                                                 r"downloads?|documents?|computer|pc|contacts?|todos?|tasks?)\b", m["q"], re.I)
+                      else ("search_web", {"query": m["q"], "open_in_browser": True}), priority=70),
             QuickRule(r"(?:(?:what'?s|what is|how'?s|how is)\s+)?(?:the\s+)?weather(?:\s+like)?(?:\s+(?:in|at|for)\s+(?P<loc>.+?))?"
                       r"(?:\s+(?:today|now|right now|tomorrow|this week))?", weather),
             QuickRule(r"(?:is it|will it|is it going to)\s+(?:be\s+)?(?:rain|raining|snow|snowing|hot|cold|sunny)"

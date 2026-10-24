@@ -347,6 +347,8 @@ class FilesSkill(Skill):
                       r"(?P<k>file|files|document|documents|doc|pdf|pdfs|photo|photos|picture|pictures|image|images|video|videos|song|songs|spreadsheet|presentation)",
                       lambda m: ("find_files", {"query": m["q"], **({"kind": KIND_WORDS[m["k"].lower()]}
                                                                       if m["k"].lower() not in ("file", "files") else {})}), priority=45),
+            QuickRule(r"search\s+(?:my\s+)?(?:files|computer|pc|documents|downloads)\s+for\s+(?P<q>.+)",
+                      lambda m: ("find_files", {"query": m["q"]}), priority=45),
             QuickRule(r"(?:find|locate)\s+(?:the\s+)?files?\s+(?:named|called)\s+(?P<q>.+)",
                       lambda m: ("find_files", {"query": m["q"]}), priority=45),
             QuickRule(r"(?:show\s+)?(?:my\s+)?recent(?:ly used)?\s+(?:files|documents)", lambda m: ("recent_files", {})),

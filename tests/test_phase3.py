@@ -270,11 +270,21 @@ def runtime(ctx):
     ("remind me to stretch in 20 minutes", "set_reminder"),
     ("check my email", "check_email"),
     ("show my routines", "list_routines"),
+    ("search my email for invoices", "check_email"),
+    ("search my files for tax return", "find_files"),
+    ("search for cheap flights", "search_web"),
 ])
+
 def test_full_routing(runtime, text, tool):
     call = runtime.ctx.services["quick_match"](text)
     assert call is not None, text
     assert call.name == tool, (text, call)
+
+
+@pytest.mark.parametrize("text", ["close all tabs", "what is the capital of france", "remind me to call mom",
+                                  "email ram that I'm late", "tell ram I'm late", "summarize this", "restart chrome"])
+def test_full_routing_leaves_for_model(runtime, text):
+    assert runtime.ctx.services["quick_match"](text) is None
 
 
 def test_routines_end_to_end(runtime):

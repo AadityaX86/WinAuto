@@ -325,6 +325,8 @@ class EmailSkill(Skill):
                       r"(?:\s+(?:today|now))?", lambda m: ("check_email", {})),
             QuickRule(r"(?:do i have\s+)?(?:any\s+)?(?:new\s+|unread\s+)?e-?mails?(?:\s+today)?",
                       lambda m: ("check_email", {})),
+            QuickRule(r"(?:search|look\s+through|find\s+in)\s+(?:my\s+)?(?:e-?mails?|inbox|gmail)\s+(?:for\s+)?(?P<q>.+)",
+                      lambda m: ("check_email", {"query": m["q"], "unread_only": False, "limit": 8})),
             QuickRule(r"(?:any\s+|show\s+|check\s+)?(?:new\s+)?e-?mails?\s+from\s+(?P<who>[\w .@-]+)",
                       lambda m: ("check_email", {"query": f"from:{m['who'].strip().split()[0]}", "unread_only": False})),
         ]
