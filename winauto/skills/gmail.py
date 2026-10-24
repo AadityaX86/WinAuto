@@ -24,7 +24,7 @@ from winauto.skills.shared.contacts import EMAIL_RE, ContactBook
 log = logging.getLogger(__name__)
 
 SETUP_HELP = (
-    "Gmail isn't set up yet. Open Settings → Email and enter your Gmail address and an app password. "
+    "Gmail isn't set up yet. Open Settings → Accounts and enter your Gmail address and an app password. "
     "Create the app password at https://myaccount.google.com/apppasswords (it needs 2-Step Verification turned on)."
 )
 
@@ -115,6 +115,20 @@ class EmailSkill(Skill):
         if sig and sig not in body:
             body += "\n\n" + sig
         return body + "\n"
+
+    def precheck(self, tool_name: str, args: dict[str, Any]) -> ToolResult | None:
+        if tool_name not in ("send_email", "reply_email") or self._backend is not None:
+            return None
+        if self.ctx.config.email.address.strip() and get_secret(SECRET_NAME):
+            return None
+        # Keep the draft, so setting up Gmail doesn't mean writing it again.
+        draft = ""
+        if args.get("body"):
+            draft = "\n\nHere's the draft so you don't lose it:\n\n"
+            if args.get("subject"):
+                draft += f"**{args['subject']}**\n\n"
+            draft += str(args["body"])
+        return fail(SETUP_HELP + draft)
 
     def preview(self, tool_name: str, args: dict[str, Any]) -> str | None:
         if tool_name == "send_email":

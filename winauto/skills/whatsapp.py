@@ -42,7 +42,7 @@ class WhatsAppSkill(Skill):
         if len(phone) < 10 and not cc:
             return None, contact["name"], (
                 f"{contact['name']}'s number ({contact['phone']}) has no country code. "
-                "Add it to the contact, or set your country code in Settings → Messaging."
+                "Add it to the contact, or set your country code in Settings → Accounts → Messaging."
             )
         return phone, contact["name"], None
 
@@ -70,6 +70,17 @@ class WhatsAppSkill(Skill):
             return fail(str(exc))
         except OSError as exc:
             return fail(f"Couldn't open WhatsApp: {exc}")
+
+    def precheck(self, tool_name: str, args: dict[str, Any]) -> ToolResult | None:
+        if tool_name != "send_whatsapp":
+            return None
+        to = str(args.get("to", ""))
+        phone, _, error = self._target(to)
+        if phone and not error:
+            return None
+        return fail((error or f"I need a phone number for {to}.") +
+                    f" Type their number instead, with the country code (whatsapp +<number>: hi), "
+                    f"or save it once: add contact {to} +<number>", fallback=True)
 
     def preview(self, tool_name: str, args: dict[str, Any]) -> str | None:
         if tool_name == "send_whatsapp":

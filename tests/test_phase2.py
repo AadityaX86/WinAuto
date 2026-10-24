@@ -294,6 +294,34 @@ def test_gmail_not_set_up(ctx):
     assert not r.ok and "apppasswords" in r.message
 
 
+def _agent(skill):
+    from fakes import RecordingConfirmer
+
+    from winauto.core.agent import Agent
+
+    reg = Registry()
+    reg.add(skill)
+    confirmer = RecordingConfirmer()
+    return Agent(reg, None, confirmer), confirmer
+
+
+def test_no_approval_card_that_cant_work(ctx, contacts):
+    """Gmail not set up / unknown WhatsApp contact: say so before the card, and keep the draft."""
+    from winauto.core.llm import ToolCall
+
+    agent, confirmer = _agent(EmailSkill(ctx))
+    r = agent.run_tool(ToolCall("send_email", {"to": "ram", "subject": "Meeting", "body": "Moved to 3pm."}))
+    assert not r.ok and "Settings → Accounts" in r.message and "Moved to 3pm." in r.message
+    assert confirmer.requests == []
+    ctx.config.messaging.default_country_code = "977"
+    agent, confirmer = _agent(WhatsAppSkill(ctx, FakeWhatsApp()))
+    r = agent.run_tool(ToolCall("send_whatsapp", {"to": "zorro", "message": "hi"}))
+    assert not r.ok and "add contact zorro" in r.message and confirmer.requests == []
+    # A known contact still gets the card.
+    agent.run_tool(ToolCall("send_whatsapp", {"to": "ram sharma", "message": "hi"}))
+    assert len(confirmer.requests) == 1
+
+
 @pytest.mark.parametrize("text, args", [
     ("check my email", {}),
     ("any new emails", {}),

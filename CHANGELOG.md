@@ -26,6 +26,8 @@ Fixes and polish from using WinAuto the way a new user would, on a real Windows 
 - Hides when you click another window (except while it's working or waiting for your approval). Turn this off in Settings → General.
 - Opening it again a few minutes after a chat starts at the search box instead of the old conversation.
 - Approval cards fit their text, and a new card scrolls so its title is in view.
+- No approval card for something that can't work: if Gmail isn't set up yet, or a WhatsApp contact is unknown, WinAuto says so straight away (and keeps the email draft) instead of after you press Send.
+- A shortcut already taken by another app now says where to change it, and that the tray icon still opens WinAuto.
 - Settings records shortcuts by pressing them, instead of typing "ctrl+alt+space"; Backspace turns the writing-tools shortcut off.
 
 ### Under the hood

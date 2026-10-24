@@ -82,7 +82,7 @@ Each `@tool` method is an ability the AI can use. Its signature becomes the JSON
 | `name="..."` | The tool name should differ from the method name. |
 | `title="Log {glasses} glasses"` | How the launcher names an instant command for this tool. `{arg}` is filled in, and arguments left at their default are dropped. It can also be a function of the arguments: `title=lambda a: "Mute" if a["mute"] else "Unmute"`. Without it the launcher shows "Log water: 2". |
 
-Override `preview(tool_name, args)` to write a friendlier approval-card text.
+Override `preview(tool_name, args)` to write a friendlier approval-card text, and `precheck(tool_name, args)` to stop a risky tool *before* its card when it can't work anyway (an account that isn't set up, an unknown contact). Return `fail("…")` to stop, or `None` to show the card.
 
 **Results:** return `ok(message, data=None)` or `fail(message)`. The message is what the user sees, so write it as a short, plain sentence. To put buttons under the reply, add `data={"actions": [{"label": "Copy", "icon": "copy", "tool": "set_clipboard", "args": {"text": ...}}]}`.
 

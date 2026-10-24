@@ -276,6 +276,14 @@ class Agent:
         except ArgumentError as exc:
             return fail(f"Bad input for {tool.name}: {exc}")
         if tool.risk is Risk.CONFIRM:
+            problem = None
+            if tool.precheck:
+                try:
+                    problem = tool.precheck(args)
+                except Exception:  # a check must never block the request
+                    log.exception("precheck failed for %s", tool.name)
+            if problem is not None:
+                return problem
             request = ConfirmRequest(
                 tool=tool.name,
                 title=tool.name.replace("_", " ").capitalize() + "?",
