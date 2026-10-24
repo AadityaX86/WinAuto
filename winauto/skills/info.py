@@ -60,7 +60,8 @@ class InfoSkill(Skill):
         return rates
 
     @tool("Convert money between currencies with today's rates.",
-          params={"amount": "How much", "from_currency": "e.g. USD, euros, rupees", "to_currency": "e.g. NPR, INR"})
+          params={"amount": "How much", "from_currency": "e.g. USD, euros, rupees", "to_currency": "e.g. NPR, INR"},
+          title="Convert {amount} {from_currency} to {to_currency}")
     def convert_currency(self, amount: float, from_currency: str, to_currency: str) -> ToolResult:
         src, dst = self._code(from_currency), self._code(to_currency)
         try:
@@ -75,7 +76,7 @@ class InfoSkill(Skill):
 
     # ----- dictionary -----
 
-    @tool("Define an English word.", params={"word": "The word"})
+    @tool("Define an English word.", params={"word": "The word"}, title="Define “{word}”")
     def define_word(self, word: str) -> ToolResult:
         w = word.strip().lower()
         try:
@@ -96,7 +97,8 @@ class InfoSkill(Skill):
 
     # ----- wikipedia -----
 
-    @tool("Get a short Wikipedia summary of a topic.", params={"topic": "Person, place, thing or idea"}, final=False)
+    @tool("Get a short Wikipedia summary of a topic.", params={"topic": "Person, place, thing or idea"}, final=False,
+          title="Wikipedia: {topic}")
     def wikipedia_summary(self, topic: str) -> ToolResult:
         q = urllib.parse.quote(topic.strip())
         try:
@@ -116,7 +118,8 @@ class InfoSkill(Skill):
 
     # ----- news -----
 
-    @tool("Latest news headlines, optionally about a topic.", params={"topic": "Optional topic", "count": "How many (default 6)"})
+    @tool("Latest news headlines, optionally about a topic.", params={"topic": "Optional topic", "count": "How many (default 6)"},
+          title="News: {topic}")
     def get_news(self, topic: str = "", count: int = 6) -> ToolResult:
         base = "https://news.google.com/rss"
         url = f"{base}/search?q={urllib.parse.quote(topic)}&hl=en-US&gl=US&ceid=US:en" if topic.strip() else f"{base}?hl=en-US&gl=US&ceid=US:en"

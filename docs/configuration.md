@@ -26,6 +26,7 @@ Set the environment variable `WINAUTO_HOME` to use a different data folder (hand
 | | Open WinAuto shortcut | `hotkey` | `ctrl+alt+space` |
 | | Writing tools shortcut | `text_hotkey` | `ctrl+alt+t` |
 | | Start with Windows | `start_with_windows` | off |
+| | Hide when you click elsewhere | `hide_on_click_away` | on |
 | | Instant commands | `use_quick_commands` | on |
 | | Morning briefing | `morning_briefing` | on |
 | | Read answers aloud | `speak_replies` | off |

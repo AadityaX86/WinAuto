@@ -4,6 +4,34 @@ All notable changes to WinAuto. Dates are when the change reached `main`.
 
 ## Unreleased
 
+## 0.2.1 (2026-10-24)
+
+Fixes and polish from using WinAuto the way a new user would, on a real Windows PC with the built-in AI.
+
+### Easier to start
+- A **Welcome** card on the home screen replaces the long first-run chat message, which used to hide the AI download progress. It has **Start with Windows**, **Show examples** and **Got it**.
+- A Windows notification says when the built-in AI has finished downloading.
+- New **Help**: type `help`, `what can you do` or `help email` for examples. Works instantly, without the AI.
+- **Fill-in results**: typing `rem`, `timer`, `todo`, `note`, `email`, `whatsapp`, `discord`, `search`, `volume` or `brightness` offers the start of the command ("Remind me to…") with an example, and puts it in the box for you to finish.
+
+### Clearer results
+- Instant commands say what will happen ("Set volume to 50%", "Shut down in 10 min", "Search YouTube for “lofi”") instead of repeating what you typed.
+- No more duplicate rows: a result that does exactly what the instant command does takes its place, and sites with two names (WhatsApp / WhatsApp Web) show once.
+- `google cats` and `search cats` search for "cats", ranked first.
+- `volume`, `vol 50`, `vol up`, `brightness` show Volume up/down and Brightness up/down; `mail` and `inbox` show Check my email; `wifi` shows Wi-Fi on/off.
+- Reminders no longer start with "to" ("call mom", not "to call mom").
+- Home suggestions use plain words ("The AI looks at your screen and explains it", not "Ask the vision model").
+
+### Popup
+- Hides when you click another window (except while it's working or waiting for your approval). Turn this off in Settings → General.
+- Opening it again a few minutes after a chat starts at the search box instead of the old conversation.
+- Approval cards fit their text, and a new card scrolls so its title is in view.
+- Settings records shortcuts by pressing them, instead of typing "ctrl+alt+space"; Backspace turns the writing-tools shortcut off.
+
+### Under the hood
+- `@tool(title=...)` names instant commands in the launcher; `core.launcher.template()` and `starts()` make fill-in results.
+- `scripts/user_journey.py` and the **User journey** workflow walk through WinAuto on a real Windows machine with the built-in AI, and print every result.
+
 ## 0.2.0 (2026-10-24)
 
 ### Nothing else to install

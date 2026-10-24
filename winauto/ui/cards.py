@@ -29,6 +29,12 @@ from winauto.ui.theme import Palette
 MULTILINE_FIELDS = {"body", "message", "text", "content", "note", "command"}
 
 
+def editor_lines(text: str, minimum: int = 3, maximum: int = 8, width_chars: int = 72) -> int:
+    """About how many lines `text` needs in the card's editor (wrapped at `width_chars`)."""
+    needed = sum(max(1, -(-len(line) // width_chars)) for line in (text.splitlines() or [""]))
+    return max(minimum, min(maximum, needed))
+
+
 # ---------------- approval card ----------------
 
 class ConfirmCard(QFrame):
@@ -58,7 +64,9 @@ class ConfirmCard(QFrame):
             layout.addWidget(make_label(name.replace("_", " ").capitalize(), object_name="Muted"))
             if name in MULTILINE_FIELDS or "\n" in value or len(value) > 80:
                 edit = QPlainTextEdit(value)
-                edit.setMinimumHeight(120 if name != "command" else 60)
+                # Tall enough for the text (3 to 8 lines), so the buttons stay in view.
+                lines = editor_lines(value, minimum=2 if name == "command" else 3)
+                edit.setFixedHeight(edit.fontMetrics().lineSpacing() * lines + 30)
                 edit.setTabChangesFocus(True)
             else:
                 edit = QLineEdit(value)
@@ -79,6 +87,10 @@ class ConfirmCard(QFrame):
         self.ok_btn.clicked.connect(self._approve)
         self.cancel_btn.clicked.connect(self._cancel)
         self._done = False
+
+    @property
+    def done(self) -> bool:
+        return self._done
 
     def focus(self) -> None:
         first = next(iter(self._fields.values()), None)

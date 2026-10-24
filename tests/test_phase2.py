@@ -158,9 +158,9 @@ def test_cancel(reminders):
 
 
 @pytest.mark.parametrize("text, tool, check", [
-    ("remind me to call mom at 6pm", "set_reminder", {"text": "to call mom", "when": "2026-10-24 18:00", "repeat": "none"}),
-    ("remind me in 20 minutes to stretch", "set_reminder", {"text": "to stretch", "when": "2026-10-24 14:25", "repeat": "none"}),
-    ("remind me to drink water every day at 10am", "set_reminder", {"text": "to drink water", "when": "2026-10-25 10:00", "repeat": "daily"}),
+    ("remind me to call mom at 6pm", "set_reminder", {"text": "call mom", "when": "2026-10-24 18:00", "repeat": "none"}),
+    ("remind me in 20 minutes to stretch", "set_reminder", {"text": "stretch", "when": "2026-10-24 14:25", "repeat": "none"}),
+    ("remind me to drink water every day at 10am", "set_reminder", {"text": "drink water", "when": "2026-10-25 10:00", "repeat": "daily"}),
     ("set a timer for 10 minutes", "set_timer", {"duration": "10 minutes", "label": ""}),
     ("pasta timer 8 min", "set_timer", {"duration": "8 min", "label": "pasta"}),
     ("5 min timer", "set_timer", {"duration": "5 min", "label": ""}),

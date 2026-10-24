@@ -69,7 +69,8 @@ class Runtime:
         self.home = HomeService(self.ctx, self.registry)
         self.writing = WritingTools(self.ctx)
         self.voice = VoiceService(self.ctx)
-        self.ai_setup = AISetup(self.local_ai, lambda: self.config, self.apply_config, store=self.db)
+        self.ai_setup = AISetup(self.local_ai, lambda: self.config, self.apply_config, store=self.db,
+                                notify=lambda title, message: self.ctx.notify(title, message))
 
     # ----- Assistant port (used by skills through ctx.assistant) -----
 

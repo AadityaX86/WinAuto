@@ -41,7 +41,7 @@ def main() -> int:
         return 1
     expected_skills = {"apps", "notes", "web", "utils", "system", "contacts", "reminders", "email", "whatsapp",
                        "discord", "files", "clipboard", "media", "windows", "routines", "shortcuts", "tools",
-                       "memory", "textactions", "vision", "info", "calendar", "briefing", "focus", "voice"}
+                       "memory", "textactions", "vision", "info", "calendar", "briefing", "focus", "voice", "help"}
 
     def skills():
         loaded = {s.name for s in rt.registry.skills}

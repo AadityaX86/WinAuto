@@ -29,7 +29,8 @@ class MemorySkill(Skill):
             return ""
         return "Things the user asked you to remember:\n" + "\n".join(f"- {r['fact']}" for r in reversed(rows))
 
-    @tool("Remember a fact about the user for future conversations.", params={"fact": "e.g. 'My sister's name is Sita'"})
+    @tool("Remember a fact about the user for future conversations.", params={"fact": "e.g. 'My sister's name is Sita'"},
+          title="Remember: {fact}")
     def remember_fact(self, fact: str) -> ToolResult:
         fact = fact.strip().rstrip(".")
         if not fact:
@@ -56,7 +57,7 @@ class MemorySkill(Skill):
             self.db.execute("DELETE FROM memories WHERE id = ?", (r["id"],))
         return ok("Forgotten: " + "; ".join(r["fact"] for r in hits))
 
-    @tool("List everything you've been asked to remember.")
+    @tool("List everything you've been asked to remember.", title="What I remember about you")
     def list_memories(self) -> ToolResult:
         rows = self.db.query("SELECT fact FROM memories ORDER BY id")
         if not rows:

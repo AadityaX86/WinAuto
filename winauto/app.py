@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 import getpass
 import logging
 import os
@@ -19,16 +20,6 @@ from winauto.paths import data_dir, log_dir
 log = logging.getLogger(__name__)
 
 SERVER_NAME = f"WinAuto-{getpass.getuser()}"
-
-WELCOME = """Hi! I'm **WinAuto**. Press **{hotkey}** anytime to open me, and **{text_hotkey}** with text selected for writing tools.
-
-Type to search apps, settings and commands, or just ask:
-- open spotify · snap chrome left · volume 30
-- todo call mom tomorrow 6pm · remind me to stretch in 20 minutes
-- email Ram that the meeting moved to 3pm
-- what's on my screen? · good morning · 100 usd to npr
-- `>` runs a terminal command, `:` finds emoji, `/` finds files"""
-
 
 class _Signals(QObject):
     toggle = Signal()
@@ -90,6 +81,7 @@ def main(argv: list[str] | None = None) -> int:
     apply_palette(app, pal)
 
     popup = PopupWindow(pal)
+    popup.hide_on_blur = config.hide_on_click_away
     popup_hwnd = int(popup.winId())  # read here: Qt widgets must only be touched on this thread
     confirmer = QtConfirmer()
     controller = Controller(popup, confirmer)
@@ -120,6 +112,8 @@ def main(argv: list[str] | None = None) -> int:
 
     def show_popup() -> None:
         was_visible = popup.isVisible()
+        if not was_visible:
+            controller.maybe_start_over()
         popup.show_popup()
         if not was_visible:
             controller.refresh_home()
@@ -202,6 +196,7 @@ def main(argv: list[str] | None = None) -> int:
             hotkeys_changed = (cfg.hotkey, cfg.text_hotkey) != (runtime.config.hotkey, runtime.config.text_hotkey)
             ai_changed = (cfg.llm.backend, cfg.llm.builtin_model) != (runtime.config.llm.backend, runtime.config.llm.builtin_model)
             runtime.apply_config(cfg)
+            popup.hide_on_blur = cfg.hide_on_click_away
             if ai_changed and runtime.ai_setup.needed():
                 runtime.ai_setup.start(user_asked=True)  # they picked a model: download it now
             controller.attach(runtime)
@@ -219,6 +214,21 @@ def main(argv: list[str] | None = None) -> int:
         dialog.activateWindow()
 
     popup.settings_requested.connect(open_settings)
+
+    def start_with_windows() -> None:
+        try:
+            set_start_with_windows(True)
+        except OSError:
+            log.exception("Couldn't turn on start-with-Windows")
+            popup.flash("Couldn't turn that on; try Settings")
+            return
+        cfg = copy.deepcopy(runtime.config)
+        cfg.start_with_windows = True
+        runtime.apply_config(cfg)
+        popup.home.welcome.set_starts_with_windows(True)
+        popup.flash("WinAuto will start with Windows")
+
+    controller.startup_requested.connect(start_with_windows)
 
     def check_model(try_start: bool = True) -> None:
         popup.show_setup(runtime.ai_setup.view())  # hides the built-in AI card when it's not in use
@@ -262,11 +272,8 @@ def main(argv: list[str] | None = None) -> int:
     server.newConnection.connect(on_connection)
 
     register_hotkeys()
-    first_run = runtime.db.get_value("welcomed") is None
-    if first_run:
-        popup.add_bot(WELCOME.format(hotkey=pretty_hotkey(runtime.config.hotkey),
-                                     text_hotkey=pretty_hotkey(runtime.config.text_hotkey)))
-        runtime.db.set_value("welcomed", "1")
+    first_run = runtime.db.get_value("launched") is None  # the home screen shows a welcome card until "Got it"
+    runtime.db.set_value("launched", "1")
     check_model()
     if not background or first_run:
         show_popup()

@@ -17,6 +17,7 @@ from winauto.adapters.http import (
 )
 from winauto.adapters.winos.shell import open_url
 from winauto.core.context import Context
+from winauto.core.launcher import starts, template
 from winauto.core.matching import normalize
 from winauto.core.quick import is_simple
 from winauto.core.skill import (
@@ -74,6 +75,9 @@ SITE_SEARCH = {
     "twitter": "https://x.com/search?q={q}",
     "linkedin": "https://www.linkedin.com/search/results/all/?keywords={q}",
 }
+SITE_NAMES = {"youtube": "YouTube", "github": "GitHub", "stackoverflow": "Stack Overflow", "linkedin": "LinkedIn",
+              "maps": "Google Maps", "images": "Google Images", "news": "Google News", "translate": "Google Translate",
+              "twitter": "X"}
 SITE_SEARCH_ALIASES = {"yt": "youtube", "google maps": "maps", "map": "maps", "wiki": "wikipedia",
                        "x": "twitter", "pictures": "images", "photos": "images", "stack overflow": "stackoverflow"}
 
@@ -182,8 +186,7 @@ class WebSkill(Skill):
     @tool(
         "Open a website in the browser.",
         params={"site": "A site name (e.g. 'youtube', 'gmail') or a web address"},
-        hides_popup=True,
-    )
+        hides_popup=True, title=lambda a: f"Open {a['site'][:1].upper()}{a['site'][1:]}")
     def open_website(self, site: str) -> ToolResult:
         site = site.strip()
         url = self.site_url(site)
@@ -201,8 +204,7 @@ class WebSkill(Skill):
         "Search the web. By default the results come back to you so you can answer the question. "
         "Set open_in_browser=true only if the user wants to see the search page.",
         params={"query": "What to search for", "open_in_browser": "Show the results in the browser instead"},
-        final=False,
-    )
+        final=False, title="Search the web for “{query}”")
     def search_web(self, query: str, open_in_browser: bool = False) -> ToolResult:
         if open_in_browser:
             self._open(self._engine_url(query))
@@ -221,8 +223,7 @@ class WebSkill(Skill):
     @tool(
         "Search inside a specific site (youtube, amazon, wikipedia, github, reddit, maps, images, news, spotify...) in the browser.",
         params={"site": "Which site", "query": "What to search for"},
-        hides_popup=True,
-    )
+        hides_popup=True, title=lambda a: f"Search {SITE_NAMES.get(a['site'], a['site'].title())} for “{a['query']}”")
     def search_site(self, site: str, query: str) -> ToolResult:
         key = normalize(site)
         key = SITE_SEARCH_ALIASES.get(key, key)
@@ -259,7 +260,7 @@ class WebSkill(Skill):
     @tool(
         "Current weather and forecast.",
         params={"location": "City or place. Leave empty for the user's saved or current location."},
-    )
+        title="Weather: {location}")
     def get_weather(self, location: str = "") -> ToolResult:
         place = location.strip() or self.ctx.config.weather_location
         url = "https://wttr.in/" + urllib.parse.quote(place) + "?format=j1"
@@ -302,15 +303,23 @@ class WebSkill(Skill):
                                   kind="Website", icon="globe", score=95))
         key = normalize(re.sub(r"^(?:open|go to|visit)\s+", "", q, flags=re.I))
         if len(key) >= 2:
-            for name, url in self._sites().items():
-                if name.startswith(key) and len(name) <= len(key) + 12:
+            urls: set[str] = set()
+            sites = sorted(self._sites().items(), key=lambda item: (item[0] != key, len(item[0])))
+            for name, url in sites:
+                if name.startswith(key) and len(name) <= len(key) + 12 and url not in urls:
+                    urls.add(url)  # "WhatsApp" and "WhatsApp Web" are the same page
                     out.append(Suggestion(title=f"Open {name.title()}", subtitle=url, tool="open_website",
                                           args={"site": name}, kind="Website", icon="globe",
                                           score=90 if name == key else 76))
-        if len(q) >= 2:
-            engine = self.ctx.config.search_engine.capitalize()
-            out.append(Suggestion(title=f"Search {engine} for “{q}”", subtitle="Opens your browser", tool="search_web",
-                                  args={"query": q, "open_in_browser": True}, kind="Web", icon="search", score=15))
+        engine = self.ctx.config.search_engine.capitalize()
+        if starts(q, "search", "google", "search the web"):
+            out.append(template(f"Search {engine} for…", "search ", "Type what to look up", "search", 80))
+        # "google cats" searches for "cats"
+        term = re.sub(r"^(?:search|google|bing|look\s*up)\s+(?:for\s+|up\s+)?", "", q, flags=re.I).strip() or q
+        if len(term) >= 2 and term.lower() not in ("search", "google"):
+            out.append(Suggestion(title=f"Search {engine} for “{term}”", subtitle="Opens your browser", tool="search_web",
+                                  args={"query": term, "open_in_browser": True}, kind="Web", icon="search",
+                                  score=15 if term == q else 90))
         return out[:5]
 
     # ----- quick commands -----

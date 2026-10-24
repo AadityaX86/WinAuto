@@ -51,8 +51,10 @@ class ModelChoice:
 
 class AISetup:
     def __init__(self, ai: LocalAI, get_config: Callable[[], Config], apply_config: Callable[[Config], None],
-                 store: Any = None, gpus: Callable[[], list] | None = None, ram: Callable[[], int] | None = None):
+                 store: Any = None, gpus: Callable[[], list] | None = None, ram: Callable[[], int] | None = None,
+                 notify: Callable[[str, str], None] | None = None):
         self.ai = ai
+        self._notify = notify  # desktop notification (title, message), e.g. when the download is done
         self._get_config = get_config
         self._apply_config = apply_config
         self._store = store
@@ -138,7 +140,9 @@ class AISetup:
             self.ai.install(cancel)
             self._celebrate = True
             log.info("Built-in AI downloaded (%s)", self.ai.model.id)
-            self.load()  # ready straight away, no restart needed
+            if self.load() and self._notify:  # ready straight away, no restart needed
+                keys = "+".join(k.capitalize() for k in self._get_config().hotkey.split("+"))
+                self._notify("Your AI is ready", f"Press {keys} and ask anything. It runs entirely on this PC.")
         except Cancelled:
             log.info("Built-in AI download paused")
         except DownloadError as exc:
@@ -167,7 +171,6 @@ class AISetup:
         if self._store is not None:
             self._store.set_value(PAUSED_KEY, "1")
         self._cancel.set()
-
 
     def dismiss(self) -> None:
         """The "ready" card has been seen."""

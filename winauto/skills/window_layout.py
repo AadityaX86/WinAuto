@@ -70,6 +70,7 @@ class WindowLayoutSkill(Skill):
         "Snap, maximize, minimize or restore a window.",
         params={"position": "left, right, top, bottom, top left, top right, bottom left, bottom right, center, maximize, minimize, restore",
                 "app": "App name; empty = the window in use before WinAuto opened"},
+        title="Snap window {position}: {app}",
     )
     def arrange_window(self, position: Literal["left", "right", "top", "bottom", "top left", "top right",
                                                "bottom left", "bottom right", "center", "maximize", "minimize",
@@ -100,7 +101,7 @@ class WindowLayoutSkill(Skill):
         return ok(f"{left_app} on the left, {right_app} on the right.")
 
     @tool("Minimize every window to show the desktop, or bring them back.",
-          params={"restore": "true to bring the windows back"})
+          params={"restore": "true to bring the windows back"}, title="Show desktop")
     def show_desktop(self, restore: bool = False) -> ToolResult:
         try:
             from winauto.adapters.winos.keyboard import press
@@ -111,7 +112,8 @@ class WindowLayoutSkill(Skill):
         return ok("Windows restored." if restore else "Minimized everything.")
 
     @tool("Take a screenshot and save it to Pictures\\Screenshots. 'snip' lets the user draw a box (copied to clipboard).",
-          params={"what": "screen (all monitors), window (the window in use), or snip"})
+          params={"what": "screen (all monitors), window (the window in use), or snip"},
+          title="Take a screenshot: {what}")
     def take_screenshot(self, what: Literal["screen", "window", "snip"] = "screen") -> ToolResult:
         try:
             if what == "snip":

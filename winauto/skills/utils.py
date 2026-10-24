@@ -146,7 +146,8 @@ class UtilsSkill(Skill):
         return ok(f"{expression.strip().rstrip('=?')} = **{format_number(value)}**", data={"value": value})
 
     @tool("Convert between units (length, weight, volume, speed, data, area, time, temperature).",
-          params={"value": "The number", "from_unit": "e.g. 'km', 'lb', 'F'", "to_unit": "e.g. 'miles', 'kg', 'C'"})
+          params={"value": "The number", "from_unit": "e.g. 'km', 'lb', 'F'", "to_unit": "e.g. 'miles', 'kg', 'C'"},
+          title="Convert {value} {from_unit} to {to_unit}")
     def convert_units(self, value: float, from_unit: str, to_unit: str) -> ToolResult:
         try:
             result, a, b = convert(value, from_unit, to_unit)
@@ -154,7 +155,8 @@ class UtilsSkill(Skill):
             return fail(str(exc))
         return ok(f"{format_number(value)} {a} = **{format_number(round(result, 4))} {b}**", data={"value": result})
 
-    @tool("Current time in a city or country.", params={"place": "City or country, e.g. 'Tokyo', 'New York'"})
+    @tool("Current time in a city or country.", params={"place": "City or country, e.g. 'Tokyo', 'New York'"},
+          title="Time in {place}")
     def time_in(self, place: str) -> ToolResult:
         zone = find_zone(place)
         if not zone:

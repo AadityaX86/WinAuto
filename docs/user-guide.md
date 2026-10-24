@@ -12,6 +12,8 @@ Press **Ctrl+Alt+Space** from any app. The popup opens on the **home screen**:
 
 Start typing and **results appear as you type**: apps, settings pages, websites, files, calculations, emoji, clipboard items, your quick links and snippets, and an **Ask WinAuto** row that sends what you typed to the AI.
 
+Not sure how to word something? Start typing and pick a **Fill in** result. For example `rem` → **Remind me to…** puts `remind me to ` in the box, with a hint like "call mom at 6pm", so you just finish the sentence. There are fill-ins for reminders, timers, todos, notes, email, WhatsApp, Discord, web searches, volume and brightness. Type **help** (or "what can you do") for examples of everything, or **help email**, **help pc** and so on for one area.
+
 ![Results as you type](images/results.png)
 
 | Key | Does |
@@ -25,6 +27,8 @@ Start typing and **results appear as you type**: apps, settings pages, websites,
 Next to the search box, **mic** starts Windows voice typing, **＋** starts a new chat and **sliders** open Settings. The dot at the bottom left is green when the AI model is ready.
 
 Results that open something (an app, a website) hide the popup afterwards. Results that copy something show "✓ Copied" and hide.
+
+The popup also hides when you click another window, like the Start menu does. It stays open while it's working on something or waiting for you to approve a card. To keep it open, turn off **Settings → General → Hide when you click elsewhere**. If you open WinAuto again a few minutes after a chat, it starts at the search box rather than in the old conversation.
 
 ### Prefixes
 
@@ -194,6 +198,9 @@ Then just say `work mode`. Steps can include waits (`wait 5 seconds`). `show my 
 
 ## Tips
 
+- The first time WinAuto opens, a **Welcome** card on the home screen has **Start with Windows** (so the shortcut works from the moment you sign in) and **Show examples**. Press **Got it** to put it away.
+- Change a shortcut in **Settings → General**: click the box and press the keys you want. Backspace turns the writing-tools shortcut off.
+- When the built-in AI finishes downloading, Windows shows a notification, so you don't have to keep the popup open.
 - **Recent commands** on the home screen re-run with Enter.
 - Put your name, city and preferred music service in **Settings → General**; the AI uses your name when writing for you.
 - Turn off skills you never use in **Settings → Skills**. It keeps the AI a little faster.

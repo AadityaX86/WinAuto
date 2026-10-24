@@ -47,15 +47,15 @@ class MediaSkill(Skill):
             return fail(str(exc))
         return ok(message)
 
-    @tool("Pause or resume whatever is playing (music, videos).")
+    @tool("Pause or resume whatever is playing (music, videos).", title="Play / pause")
     def play_pause(self) -> ToolResult:
         return self._control("play_pause", "⏯ Done.")
 
-    @tool("Skip to the next track.")
+    @tool("Skip to the next track.", title="Next track")
     def next_track(self) -> ToolResult:
         return self._control("next", "⏭ Next track.")
 
-    @tool("Go back to the previous track.")
+    @tool("Go back to the previous track.", title="Previous track")
     def previous_track(self) -> ToolResult:
         return self._control("previous", "⏮ Previous track.")
 

@@ -60,6 +60,12 @@ class ChatView(QScrollArea):
         self._stream_label: QLabel | None = None
         self._stream_row: QWidget | None = None
         self._stream_text = ""
+        self._cards: list[ConfirmCard] = []
+
+    def has_open_cards(self) -> bool:
+        """True while an approval card is waiting for Approve or Cancel."""
+        self._cards = [c for c in self._cards if not c.done]
+        return bool(self._cards)
 
     @property
     def max_bubble(self) -> int:
@@ -144,12 +150,21 @@ class ChatView(QScrollArea):
     def add_card(self, request: ConfirmRequest) -> ConfirmCard:
         self.end_typing()
         card = ConfirmCard(request, self.p)
+        self._cards.append(card)
         row = self._row(card)
         row.layout().setContentsMargins(34, 0, 0, 0)
         card.setMinimumWidth(min(560, self.max_bubble))
         card.setMaximumWidth(WIDTH - 2 * SHADOW - 80)
         QTimer.singleShot(50, card.focus)
+        QTimer.singleShot(60, lambda: self.scroll_to_show(row))
         return card
+
+    def scroll_to_show(self, row: QWidget) -> None:
+        """Bring a new card into view; when it's taller than the window, show its top (the title)."""
+        bar = self.verticalScrollBar()
+        room = self.viewport().height()
+        target = row.y() - 8 if row.height() > room else row.y() + row.height() - room + 8
+        bar.setValue(max(0, min(bar.maximum(), target)))
 
     def start_typing(self) -> None:
         if self._typing is None and self._stream_label is None:
@@ -189,6 +204,7 @@ class ChatView(QScrollArea):
     def clear(self) -> None:
         self.end_typing()
         self.end_stream()
+        self._cards = []
         while self.layout_.count() > 1:
             item = self.layout_.takeAt(1)
             if item.widget():

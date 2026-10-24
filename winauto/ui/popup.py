@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import time
+
 from PySide6.QtCore import (
     QEasingCurve,
     QEvent,
@@ -22,6 +24,7 @@ from PySide6.QtGui import (
     QPainterPath,
 )
 from PySide6.QtWidgets import (
+    QApplication,
     QFrame,
     QHBoxLayout,
     QLabel,
@@ -65,6 +68,7 @@ class PopupWindow(QWidget):
     settings_requested = Signal()
     mic_requested = Signal()
     setup_action = Signal(str)  # built-in AI card: "pause", "resume", "retry" or "dismiss"
+    welcome_action = Signal(str)  # first-run card: "startup", "examples" or "dismiss"
 
     def __init__(self, palette: Palette):
         super().__init__(None)
@@ -79,6 +83,10 @@ class PopupWindow(QWidget):
         self._drag_from: QPoint | None = None
         self.mode = "home"
         self.has_chat = False
+        # Hide when another window is clicked (the app turns this on from Settings).
+        self.hide_on_blur = False
+        self._keep_open_until = 0.0
+        self._hidden_at: float | None = None
 
         outer = QVBoxLayout(self)
         outer.setContentsMargins(SHADOW, SHADOW - 6, SHADOW, SHADOW + 6)
@@ -127,6 +135,7 @@ class PopupWindow(QWidget):
         self.home = HomeView(palette)
         self.home.setup.action.connect(self.setup_action.emit)
         self.home.setup.dismissed.connect(lambda: self.setup_action.emit("dismiss"))
+        self.home.welcome.action.connect(self.welcome_action.emit)
         self.home.list.chosen.connect(self.suggestion_chosen.emit)
         self.results = ResultList(palette)
         self.results.chosen.connect(self.suggestion_chosen.emit)
@@ -319,6 +328,37 @@ class PopupWindow(QWidget):
         fade.start()
         slide.start()
 
+    def hideEvent(self, event) -> None:  # noqa: N802
+        self._hidden_at = time.monotonic()
+        super().hideEvent(event)
+
+    def hidden_for(self) -> float:
+        """Seconds since the popup was last hidden (0 while it's showing or before it ever was)."""
+        return 0.0 if self.isVisible() or self._hidden_at is None else time.monotonic() - self._hidden_at
+
+    def keep_open(self, ms: int) -> None:
+        """Don't hide on click-away for a while (e.g. while Windows voice typing has the focus)."""
+        self._keep_open_until = time.monotonic() + ms / 1000
+
+    def changeEvent(self, event) -> None:  # noqa: N802
+        if event.type() == QEvent.Type.ActivationChange and self.isVisible() and not self.isActiveWindow():
+            QTimer.singleShot(200, self._hide_if_left)
+        super().changeEvent(event)
+
+    def _focus_left_winauto(self) -> bool:
+        """True when another app has the focus (not this popup, Settings, a file picker or the tray menu)."""
+        if self.isActiveWindow():
+            return False
+        return all(w is None for w in (QApplication.activeWindow(), QApplication.activeModalWidget(),
+                                       QApplication.activePopupWidget()))
+
+    def _hide_if_left(self) -> None:
+        if not self.hide_on_blur or not self.isVisible() or not self._focus_left_winauto():
+            return
+        if self._busy or self.chat.has_open_cards() or time.monotonic() < self._keep_open_until:
+            return  # still working, or waiting for an approval
+        self.hide()
+
     def toggle(self) -> None:
         if self.isVisible() and self.isActiveWindow():
             self.hide()
@@ -430,6 +470,15 @@ class PopupWindow(QWidget):
         self._remember(text)
         self.add_user(text)
         self.submitted.emit(text)
+
+    def fill(self, text: str) -> None:
+        """Start a command for the user ("remind me to "), cursor at the end, ready to finish."""
+        if self.mode == "chat":
+            self.set_mode("results")
+        self.input.setText(text)
+        self.input.setFocus()
+        self.input.deselect()
+        self.input.end(False)
 
     def recall(self, direction: int) -> None:
         if not self._history:

@@ -146,6 +146,8 @@ class Tool:
     skill: str = ""
     # Hide the popup after this runs successfully (it opened something on screen).
     hides_popup: bool = False
+    # How the launcher names a call: "Open {name}", or a function of the arguments.
+    title: str | Callable[[dict[str, Any]], str] = ""
 
     def schema(self) -> dict[str, Any]:
         return {
@@ -236,8 +238,13 @@ def tool(
     confirm_label: str = "Approve",
     name: str | None = None,
     hides_popup: bool = False,
+    title: str | Callable[[dict[str, Any]], str] = "",
 ) -> Callable:
-    """Mark a Skill method as a tool. `params` maps argument name -> description."""
+    """Mark a Skill method as a tool. `params` maps argument name -> description.
+
+    `title` is what the launcher shows for an instant command, e.g. "Open {name}"
+    (unset or default arguments are left out), or a function of the arguments.
+    """
 
     def deco(fn: Callable) -> Callable:
         fn._tool_meta = {  # type: ignore[attr-defined]
@@ -249,6 +256,7 @@ def tool(
             "confirm_label": confirm_label,
             "name": name or fn.__name__,
             "hides_popup": hides_popup,
+            "title": title,
         }
         return fn
 
@@ -382,6 +390,7 @@ class Skill:
                     preview=make_preview(tool_name),
                     skill=self.name,
                     hides_popup=meta["hides_popup"],
+                    title=meta["title"],
                 )
             )
         return found

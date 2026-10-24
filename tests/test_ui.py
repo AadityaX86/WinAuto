@@ -9,8 +9,9 @@ import pytest
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 QtWidgets = pytest.importorskip("PySide6.QtWidgets")
-
 from fakes import ScriptedLLM  # noqa: E402
+from PySide6.QtCore import Qt  # noqa: E402
+from PySide6.QtTest import QTest  # noqa: E402
 from test_core import Demo  # noqa: E402
 
 from winauto.config import Config  # noqa: E402
@@ -109,16 +110,25 @@ def test_settings_dialog_collects_values(qapp):
     dialog = SettingsDialog(Config(), skills=[("apps", "Open apps"), ("notes", "Notes")])
     dialog.model.setCurrentText("llama3.1:8b")
     dialog._skill_toggles["notes"].setChecked(False)
-    dialog.hotkey.setText("ctrl+shift+k")
+    # Shortcuts are recorded by pressing them.
+    QTest.keyClick(dialog.hotkey, Qt.Key.Key_K, Qt.KeyboardModifier.ControlModifier | Qt.KeyboardModifier.ShiftModifier)
+    assert dialog.hotkey.text() == "Ctrl + Shift + K"
+    QTest.keyClick(dialog.text_hotkey, Qt.Key.Key_Backspace)  # turns writing tools' shortcut off
+    dialog.hide_on_click.setChecked(False)
     got = []
     dialog.saved.connect(got.append)
     dialog._save()
     assert got and got[0].llm.model == "llama3.1:8b" and got[0].hotkey == "ctrl+shift+k"
+    assert got[0].text_hotkey == "" and got[0].hide_on_click_away is False
     assert got[0].disabled_skills == ["notes"]
     dialog2 = SettingsDialog(Config())
-    dialog2.hotkey.setText("banana")
+    QTest.keyClick(dialog2.hotkey, Qt.Key.Key_K)  # no ctrl/alt/shift/win
     dialog2._save()
-    assert "Unknown key" in dialog2.error.text()
+    assert "needs at least one of ctrl" in dialog2.error.text()
+    dialog3 = SettingsDialog(Config())
+    QTest.keyClick(dialog3.hotkey, Qt.Key.Key_T, Qt.KeyboardModifier.ControlModifier | Qt.KeyboardModifier.AltModifier)
+    dialog3._save()
+    assert "must be different" in dialog3.error.text()
 
 
 def test_hotkey_parsing():
@@ -160,3 +170,85 @@ def test_launcher_flow(qapp, ctx):
     popup.stream_token("Hello ")
     popup.stream_token("world")
     assert popup.mode == "chat" and popup.chat._stream_text == "Hello world"
+
+
+def _app_popup(qapp, ctx, llm=None):
+    from winauto.runtime import Runtime
+    from winauto.ui.controller import Controller, QtConfirmer
+    from winauto.ui.popup import PopupWindow
+    from winauto.ui.theme import DARK
+
+    popup = PopupWindow(DARK)
+    confirmer = QtConfirmer()
+    controller = Controller(popup, confirmer)
+    rt = Runtime(confirmer, db=ctx.db, llm=llm or ScriptedLLM("ok"))
+    controller.attach(rt)
+    return popup, controller, rt
+
+
+def test_templates_fill_the_search_box(qapp, ctx):
+    popup, controller, _ = _app_popup(qapp, ctx)
+    popup.show_popup()
+    popup.input.setText("remi")
+    assert wait_for(qapp, lambda: popup.results.count() > 0)
+    top = popup.results.current()
+    assert top.title == "Remind me to…" and top.kind == "Fill in"
+    popup.suggestion_chosen.emit(top)
+    # Nothing ran: the box now holds the start of the command, cursor at the end, ready to finish.
+    assert popup.input.text() == "remind me to " and popup.input.cursorPosition() == len("remind me to ")
+    assert popup.mode == "results" and not popup.has_chat
+
+
+def test_welcome_card_until_got_it(qapp, ctx):
+    popup, controller, rt = _app_popup(qapp, ctx)
+    controller.refresh_home()
+    card = popup.home.welcome
+    assert not card.isHidden() and "Ctrl+Alt+Space" in card.message.text()
+    assert not card.startup.isHidden()  # start with Windows is off by default
+    card.done.click()
+    assert card.isHidden() and not rt.home.welcome_due()
+    controller.refresh_home()
+    assert card.isHidden()  # stays gone
+
+
+def test_popup_hides_on_click_away_unless_waiting(qapp, ctx):
+    popup, controller, _ = _app_popup(qapp, ctx)
+    popup.show_popup()
+    popup._focus_left_winauto = lambda: True  # as if another app was clicked
+    popup._hide_if_left()
+    assert popup.isVisible()  # off unless Settings turns it on
+    popup.hide_on_blur = True
+    popup.set_busy(True)
+    popup._hide_if_left()
+    assert popup.isVisible()  # still working on something
+    popup.set_busy(False)
+    from winauto.core.agent import ConfirmRequest
+
+    card = popup.add_card(ConfirmRequest("send", "Send this?", "", {"body": "hi"}, editable=("body",)))
+    popup._hide_if_left()
+    assert popup.isVisible()  # an approval is waiting
+    card.cancel_btn.click()
+    popup._hide_if_left()
+    assert not popup.isVisible()
+
+
+def test_card_editor_fits_its_text():
+    from winauto.ui.cards import editor_lines
+
+    assert editor_lines("short") == 3
+    assert editor_lines("Hi Ram,\n\nThe meeting moved to 3pm.\n\nThanks,\nSita") == 6
+    assert editor_lines("word " * 400) == 8  # long text scrolls inside the box
+    assert editor_lines("dir", minimum=2) == 2
+
+
+def test_reopening_later_starts_over(qapp, ctx):
+    popup, controller, _ = _app_popup(qapp, ctx)
+    popup.show_popup()
+    popup.add_user("hi")
+    popup.add_bot("Hello!")
+    popup.hide()
+    controller.maybe_start_over()
+    assert popup.has_chat  # just closed: the conversation is still there
+    popup._hidden_at -= 600  # ten minutes later
+    controller.maybe_start_over()
+    assert not popup.has_chat and popup.mode == "home"

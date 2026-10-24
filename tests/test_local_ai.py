@@ -281,12 +281,16 @@ def test_setup_picks_model_downloads_and_loads(ai, monkeypatch):
         cfg.llm.builtin_model = new.llm.builtin_model
 
     store = Store()
-    setup = AISetup(ai, lambda: cfg, apply, store=store, gpus=lambda: [Gpu("RTX", 12 * 1024**3)], ram=lambda: 0)
+    notes = []
+    setup = AISetup(ai, lambda: cfg, apply, store=store, gpus=lambda: [Gpu("RTX", 12 * 1024**3)], ram=lambda: 0,
+                    notify=lambda title, message: notes.append((title, message)))
     assert setup.needed() and setup.view().action == "resume"
     assert setup.hardware() == "RTX · 12 GB graphics memory"
     assert setup.start()
     setup._thread.join(5)
     assert saved == ["tiny-vl"] and ai.installed() and ai.status().state == READY
+    # A desktop notification says so, in case the popup is closed.
+    assert notes == [("Your AI is ready", "Press Ctrl+Alt+Space and ask anything. It runs entirely on this PC.")]
     view = setup.view()
     assert view.visible and view.title.startswith("✓") and view.dot is True
     setup.dismiss()

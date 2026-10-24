@@ -9,7 +9,8 @@ from typing import Any
 from winauto.adapters.winos import NotOnWindows
 from winauto.adapters.winos.whatsapp import WhatsAppDesktop
 from winauto.core.context import Context
-from winauto.core.skill import QuickRule, Risk, Skill, ToolResult, fail, ok, tool
+from winauto.core.launcher import starts, template
+from winauto.core.skill import QuickRule, Risk, Skill, Suggestion, ToolResult, fail, ok, tool
 from winauto.skills.shared.contacts import ContactBook, normalize_phone
 
 log = logging.getLogger(__name__)
@@ -48,8 +49,7 @@ class WhatsAppSkill(Skill):
     @tool(
         "Send a WhatsApp message. The user sees and can edit it first.",
         params={"to": "Contact name or phone number", "message": "The message text"},
-        risk=Risk.CONFIRM, editable=("message",), confirm_label="Send",
-    )
+        risk=Risk.CONFIRM, editable=("message",), confirm_label="Send", title="WhatsApp {to}: {message}")
     def send_whatsapp(self, to: str, message: str) -> ToolResult:
         phone, name, error = self._target(to)
         if error or not phone:
@@ -80,7 +80,7 @@ class WhatsAppSkill(Skill):
         return None
 
     @tool("Open a WhatsApp chat with someone without sending anything.", params={"to": "Contact name or phone number"},
-          hides_popup=True)
+          hides_popup=True, title="Open WhatsApp chat with {to}")
     def open_whatsapp_chat(self, to: str) -> ToolResult:
         phone, name, error = self._target(to)
         if error or not phone:
@@ -90,6 +90,11 @@ class WhatsAppSkill(Skill):
         except (OSError, NotOnWindows) as exc:
             return fail(f"Couldn't open WhatsApp: {exc}")
         return ok(f"Opened your WhatsApp chat with {name}.")
+
+    def suggest(self, query: str) -> list[Suggestion]:
+        if not starts(query, "whatsapp", "whats app", "message", "send a message", "text"):
+            return []
+        return [template("Message on WhatsApp…", "whatsapp ", "Type name: message, e.g. ram: on my way", "message", 86)]
 
     def quick_rules(self) -> list[QuickRule]:
         def send(m):

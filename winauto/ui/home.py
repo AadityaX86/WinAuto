@@ -17,6 +17,7 @@ from winauto.ui.icons import pixmap
 from winauto.ui.parts import clear_layout
 from winauto.ui.setup import SetupCard
 from winauto.ui.theme import Palette
+from winauto.ui.welcome import WelcomeCard
 from winauto.ui.widgets import ResultList
 
 
@@ -37,6 +38,12 @@ class HomeView(QWidget):
         head.addWidget(self.greeting)
         head.addWidget(self.sub)
         v.addLayout(head)
+        # First run only: how to use WinAuto.
+        self.welcome = WelcomeCard(palette)
+        welcome_box = QHBoxLayout()
+        welcome_box.setContentsMargins(22, 8, 22, 0)
+        welcome_box.addWidget(self.welcome)
+        v.addLayout(welcome_box)
         # Built-in AI download/loading progress (hidden when there's nothing to say).
         self.setup = SetupCard(palette)
         setup_box = QHBoxLayout()

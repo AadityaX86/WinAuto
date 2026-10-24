@@ -41,7 +41,8 @@ class VoiceSkill(Skill):
         except Exception:
             log.debug("speaking failed", exc_info=True)
 
-    @tool("Read text aloud. Leave text empty to read the selected or copied text.", params={"text": "What to read"})
+    @tool("Read text aloud. Leave text empty to read the selected or copied text.", params={"text": "What to read"},
+          title="Read aloud")
     def read_aloud(self, text: str = "") -> ToolResult:
         if not text.strip():
             text = self.ctx.host.selection

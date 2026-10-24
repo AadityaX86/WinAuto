@@ -80,6 +80,7 @@ Each `@tool` method is an ability the AI can use. Its signature becomes the JSON
 | `hides_popup=True` | The tool opens something on screen (an app, a website); the popup gets out of the way. |
 | `final=False` | The result is raw data the model should turn into an answer. By default a successful result *is* the answer, which saves a slow second model call. |
 | `name="..."` | The tool name should differ from the method name. |
+| `title="Log {glasses} glasses"` | How the launcher names an instant command for this tool. `{arg}` is filled in, and arguments left at their default are dropped. It can also be a function of the arguments: `title=lambda a: "Mute" if a["mute"] else "Unmute"`. Without it the launcher shows "Log water: 2". |
 
 Override `preview(tool_name, args)` to write a friendlier approval-card text.
 
@@ -117,6 +118,17 @@ While the user types, every skill's `suggest()` is asked for results. It must be
 ```
 
 `score` (0–100) orders results across skills: about 90 for an exact match, 70–85 for a good guess, below 50 for fallbacks. Choosing a result runs the tool through the normal path, approval cards included.
+
+A **fill-in** result doesn't run anything: it types the start of a command into the search box for the user to finish. Use one when your command needs details the user hasn't typed yet:
+
+```python
+from winauto.core.launcher import starts, template
+
+    def suggest(self, query: str) -> list[Suggestion]:
+        if starts(query, "drank water", "log water"):  # "dra", "log w", ...
+            return [template("Log water…", "drank ", "Type how many glasses, e.g. 2", "water")]
+        return []
+```
 
 ## 5. A home-screen card (optional)
 

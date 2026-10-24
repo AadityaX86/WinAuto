@@ -14,7 +14,8 @@ from typing import Any
 from winauto.adapters.winos import NotOnWindows
 from winauto.adapters.winos.discord import DiscordApp
 from winauto.core.context import Context
-from winauto.core.skill import QuickRule, Risk, Skill, ToolResult, fail, ok, tool
+from winauto.core.launcher import starts, template
+from winauto.core.skill import QuickRule, Risk, Skill, Suggestion, ToolResult, fail, ok, tool
 from winauto.skills.shared.contacts import ContactBook
 
 log = logging.getLogger(__name__)
@@ -49,8 +50,7 @@ class DiscordSkill(Skill):
     @tool(
         "Send a Discord direct message (or a message in a #channel of the open server). The user approves it first.",
         params={"to": "Contact name, Discord username, or #channel", "message": "The message"},
-        risk=Risk.CONFIRM, editable=("message",), confirm_label="Send",
-    )
+        risk=Risk.CONFIRM, editable=("message",), confirm_label="Send", title="Discord {to}: {message}")
     def send_discord(self, to: str, message: str) -> ToolResult:
         target, name, error = self._target(to)
         if error or not target:
@@ -78,7 +78,7 @@ class DiscordSkill(Skill):
         return None
 
     @tool("Open a Discord chat with someone without sending anything.", params={"to": "Contact, username or #channel"},
-          hides_popup=True)
+          hides_popup=True, title="Open Discord chat with {to}")
     def open_discord_chat(self, to: str) -> ToolResult:
         target, name, error = self._target(to)
         if error or not target:
@@ -89,6 +89,11 @@ class DiscordSkill(Skill):
         except NotOnWindows as exc:
             return fail(str(exc))
         return ok(f"Opened Discord chat with {name}.")
+
+    def suggest(self, query: str) -> list[Suggestion]:
+        if not starts(query, "discord", "dm"):
+            return []
+        return [template("Message on Discord…", "discord ", "Type name: message, e.g. sam: game at 8?", "message", 85)]
 
     def quick_rules(self) -> list[QuickRule]:
         def send(m):

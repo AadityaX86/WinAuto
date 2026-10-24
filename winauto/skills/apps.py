@@ -258,8 +258,7 @@ class AppsSkill(Skill):
     @tool(
         "Open (launch) an app on this PC, or bring it to the front if it's already open.",
         params={"name": "The app's everyday name, e.g. 'spotify', 'chrome', 'vs code', 'calculator'"},
-        hides_popup=True,
-    )
+        hides_popup=True, title=lambda a: f"Open {a['name'][:1].upper()}{a['name'][1:]}")
     def open_app(self, name: str) -> ToolResult:
         try:
             entry = self.resolve(name)
@@ -280,7 +279,7 @@ class AppsSkill(Skill):
     @tool(
         "Close an app's windows normally (the app can still ask to save).",
         params={"name": "The app's everyday name, or words from the window title"},
-    )
+        title=lambda a: f"Close {a['name'][:1].upper()}{a['name'][1:]}")
     def close_app(self, name: str) -> ToolResult:
         try:
             windows = self.find_windows(name)
@@ -359,7 +358,7 @@ class AppsSkill(Skill):
         except NotOnWindows as exc:
             return fail(str(exc))
 
-    @tool("List the apps that currently have open windows.")
+    @tool("List the apps that currently have open windows.", title="Show open apps")
     def list_open_apps(self) -> ToolResult:
         try:
             windows = self.backend.windows()

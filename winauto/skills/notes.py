@@ -6,6 +6,7 @@ import re
 from datetime import datetime, timedelta
 from typing import Any, Literal
 
+from winauto.core.launcher import starts, template
 from winauto.core.matching import rank
 from winauto.core.skill import (
     QuickRule,
@@ -98,8 +99,7 @@ class NotesSkill(Skill):
 
     @tool(
         "Save a note.",
-        params={"text": "What to write down", "title": "Optional short title"},
-    )
+        params={"text": "What to write down", "title": "Optional short title"}, title="Save note: {text}")
     def add_note(self, text: str, title: str = "") -> ToolResult:
         text = text.strip()
         if not text:
@@ -178,8 +178,7 @@ class NotesSkill(Skill):
             "task": "What needs doing",
             "due": "When it's due, in plain words (e.g. 'tomorrow 5pm', 'friday') or ISO date. Optional.",
             "priority": "'high' for important ones",
-        },
-    )
+        }, title="Add todo: {task}")
     def add_todo(self, task: str, due: str = "", priority: Literal["normal", "high"] = "normal") -> ToolResult:
         task = task.strip().rstrip(".")
         if not task:
@@ -207,7 +206,7 @@ class NotesSkill(Skill):
     @tool(
         "Show todos.",
         params={"which": "open (default), today, overdue, upcoming (next 7 days), done, or all"},
-    )
+        title="Show todos: {which}")
     def list_todos(self, which: Literal["open", "today", "overdue", "upcoming", "done", "all"] = "open") -> ToolResult:
         now = datetime.now()
         if which == "done":
@@ -246,7 +245,8 @@ class NotesSkill(Skill):
         due = datetime.fromisoformat(row["due_at"])
         return due < now if row.get("due_has_time") else due.date() < now.date()
 
-    @tool("Mark a todo as done.", params={"todo": "The todo's number (e.g. 3 or #3) or some of its words"})
+    @tool("Mark a todo as done.", params={"todo": "The todo's number (e.g. 3 or #3) or some of its words"},
+          title="Mark done: {todo}")
     def complete_todo(self, todo: str) -> ToolResult:
         row = self._find_todo(todo)
         if not row:
@@ -324,9 +324,15 @@ class NotesSkill(Skill):
 
     def suggest(self, query: str) -> list[Suggestion]:
         q = query.strip().lower()
+        out: list[Suggestion] = []
+        if starts(q, "todo", "to do", "task", "add todo"):
+            out.append(template("Add a todo…", "todo ", "Type the task, e.g. buy milk tomorrow", "check"))
+        if starts(q, "notes", "write a note", "take a note"):
+            out.append(template("Write a note…", "note ", "Type the note and press Enter", "note", 80))
+            out.append(Suggestion(title="Show my notes", subtitle="Your latest notes", tool="list_notes", args={},
+                                  kind="Command", icon="note", score=79))
         if len(q) < 3 or len(q.split()) > 4:
-            return []
-        out = []
+            return out
         for r in self.db.query("SELECT id, title FROM notes WHERE lower(title) LIKE ? OR lower(body) LIKE ? "
                                "ORDER BY updated_at DESC LIMIT 3", (f"%{q}%", f"%{q}%")):
             out.append(Suggestion(title=r["title"], subtitle=f"Note #{r['id']}", tool="read_note",

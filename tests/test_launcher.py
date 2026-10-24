@@ -5,7 +5,7 @@ from fakes import RecordingConfirmer, ScriptedLLM
 from test_apps import FakeWindowsApps
 from test_phase3 import FakeClipboard
 
-from winauto.core.launcher import ASK_TOOL
+from winauto.core.launcher import ASK_TOOL, FILL_TOOL
 from winauto.skills.shortcuts import ShortcutsSkill, fill_placeholders
 from winauto.skills.tools import (
     ToolsSkill,
@@ -153,3 +153,57 @@ def test_tools_skill(ctx):
     assert skill.convert_color("#00ff00").data["rgb"] == "rgb(0, 255, 0)"
     assert "Public IP: 203.0.113.7" in skill.network_info().message
     assert "Run this command?" in skill.preview("run_command", {"command": "dir"})
+
+
+def titles(rt, query, n=4):
+    return [s.title for s in rt.launcher.search(query)[:n]]
+
+
+def test_command_rows_say_what_will_happen(runtime):
+    # The instant-command row names the action in plain words, not the typed text.
+    assert top(runtime, "todo buy milk").title == "Add todo: buy milk"
+    assert top(runtime, "show my todos").title == "Show todos"  # default arguments are left out
+    assert top(runtime, "vol 50").title == "Set volume to 50%"
+    assert top(runtime, "shutdown in 10 minutes").title == "Shut down in 10 min"
+    assert top(runtime, "youtube lofi").title == "Search YouTube for “lofi”"
+    assert top(runtime, "remind me to stretch in 30 minutes").title.startswith("Remind me to stretch · ")
+    assert top(runtime, "100 usd to npr").title == "Convert 100 USD to NPR"
+
+
+def test_command_title_fallbacks():
+    from winauto.core.launcher import command_title
+
+    assert command_title("add_todo", {"task": "milk"}) == "Add todo: milk"
+    assert command_title("dark_mode", {"on": True}) == "Dark mode: on"
+    assert command_title("set_reminder", {"text": "x", "when": "2026-10-24 18:00"}).startswith("Set reminder: x, ")
+
+
+def test_templates_start_common_commands(runtime):
+    assert titles(runtime, "rem")[0] == "Remind me to…" and "Show my reminders" in titles(runtime, "rem")
+    assert "Set a timer…" in titles(runtime, "timer")
+    assert titles(runtime, "email")[:2] == ["Check my email", "Write an email…"]
+    assert "Message on WhatsApp…" in titles(runtime, "whatsapp")
+    assert "Add a todo…" in titles(runtime, "todo")
+    r = next(s for s in runtime.launcher.search("rem") if s.title == "Remind me to…")
+    assert (r.tool, r.args, r.kind) == (FILL_TOOL, {"text": "remind me to "}, "Fill in")
+
+
+def test_volume_and_search_words(runtime):
+    assert titles(runtime, "volume", 3) == ["Volume up", "Volume down", "Set volume to…"]
+    assert "Brightness up" in titles(runtime, "brightness")
+    # "google cats" searches for "cats", ahead of asking the AI
+    r = top(runtime, "google cats")
+    assert (r.tool, r.args["query"]) == ("search_web", "cats")
+    # One "Open WhatsApp" result, not one per alias of the same page
+    assert sum(s.tool == "open_website" for s in runtime.launcher.search("whatsapp")) == 1
+
+
+def test_help_works_without_the_ai(runtime):
+    assert top(runtime, "help").tool == "show_help"
+    assert top(runtime, "what can you do").tool == "show_help"
+    reply = runtime.agent.handle("help email")
+    assert not reply.used_model and "check my email" in reply.text
+    reply = runtime.agent.handle("what can you do")
+    assert "Ctrl + Alt + Space" in reply.text and "Reminders" in reply.text
+    # "help me …" is a request for the AI, not the help page
+    assert top(runtime, "help me write an email to ram").tool == ASK_TOOL

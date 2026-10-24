@@ -12,13 +12,16 @@ from winauto.services.history import CommandHistory
 
 log = logging.getLogger(__name__)
 
+WELCOMED_KEY = "welcomed"
+
 # Shown when the search box is empty. Ones whose tool isn't loaded are left out.
 HOME_SUGGESTIONS = [
     Suggestion("Daily briefing", "daily_briefing", {}, "Weather, calendar, todos and news", "Command", "sun"),
     Suggestion("What's on my screen?", "ask_about_screen", {"question": "What's on my screen? Give a short overview."},
-               "Ask the vision model", "Command", "eye"),
+               "The AI looks at your screen and explains it", "Command", "eye"),
     Suggestion("Show my todos", "list_todos", {}, "Open tasks", "Command", "check"),
-    Suggestion("Start a 25-minute focus session", "start_focus", {"minutes": 25}, "Pomodoro", "Command", "target"),
+    Suggestion("Start a 25-minute focus session", "start_focus", {"minutes": 25}, "Keeps distracting apps out of the way",
+               "Command", "target"),
     Suggestion("Clipboard history", "clipboard_history", {}, "Recently copied text", "Command", "clipboard"),
     Suggestion("Check my email", "check_email", {}, "Unread in Gmail", "Command", "mail"),
 ]
@@ -43,6 +46,14 @@ class HomeService:
 
     def record(self, text: str) -> None:
         self.history.record(text)
+
+    # ----- first run -----
+
+    def welcome_due(self) -> bool:
+        return self.ctx.db.get_value(WELCOMED_KEY) is None
+
+    def dismiss_welcome(self) -> None:
+        self.ctx.db.set_value(WELCOMED_KEY, "1")
 
     def widgets(self) -> list[Widget]:
         """Today's cards from every skill. May touch the network: call it off the UI thread."""

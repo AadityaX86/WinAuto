@@ -12,7 +12,7 @@ import threading
 from PySide6.QtCore import QObject, QTimer, Signal
 
 from winauto.core.agent import AgentReply, ConfirmRequest, Decision, Step
-from winauto.core.launcher import ASK_TOOL
+from winauto.core.launcher import ASK_TOOL, FILL_TOOL
 from winauto.core.llm import ToolCall
 from winauto.core.skill import Suggestion, ToolResult
 from winauto.ui.cards import ConfirmCard
@@ -71,6 +71,7 @@ class Controller(QObject):
     token = Signal(str)
     home_data = Signal(object)
     setup_status = Signal(object)  # built-in AI status, from any thread
+    startup_requested = Signal()  # the welcome card's "Start with Windows" (the app does it)
 
     def __init__(self, popup: PopupWindow, confirmer: QtConfirmer):
         super().__init__()
@@ -104,6 +105,7 @@ class Controller(QObject):
         self.home_data.connect(self._apply_home_data)
         self.setup_status.connect(self._show_setup)
         popup.setup_action.connect(self.setup_action)
+        popup.welcome_action.connect(self.welcome_action)
         self._setup_source = None
 
     # ----- wiring helpers -----
@@ -178,6 +180,9 @@ class Controller(QObject):
         if self.runtime is None or self._busy:
             return
         typed = self.popup.input.text().strip()
+        if s.tool == FILL_TOOL:
+            self.popup.fill(s.args.get("text", ""))
+            return
         if s.tool == ASK_TOOL:
             self.popup.input.clear()
             text = s.args.get("text", typed)
@@ -307,6 +312,12 @@ class Controller(QObject):
         self._busy = False
         self.popup.set_busy(False)
 
+    def maybe_start_over(self, idle_seconds: float = 180) -> None:
+        """Opened again after a while: back to search instead of the old conversation (like Raycast)."""
+        if (self.popup.has_chat and not self._busy and not self.popup.chat.has_open_cards()
+                and self.popup.hidden_for() >= idle_seconds):
+            self.new_chat()
+
     def new_chat(self) -> None:
         self._generation += 1
         self._busy = False
@@ -331,11 +342,30 @@ class Controller(QObject):
     def dictate(self) -> None:
         """Windows' own voice typing (Win+H) types into the search box."""
         self.popup.input.setFocus()
+        self.popup.keep_open(30000)  # the voice typing bar takes the focus while you speak
         if self.runtime is None or not self.runtime.voice.can_dictate:
             self.popup.flash("Dictation needs Windows")
             return
         voice = self.runtime.voice
         QTimer.singleShot(150, lambda: threading.Thread(target=voice.dictate, daemon=True).start())
+
+    def welcome_action(self, action: str) -> None:
+        if action == "examples":
+            self.show_examples()
+        elif action == "dismiss":
+            self.dismiss_welcome()
+        elif action == "startup":
+            self.startup_requested.emit()
+
+    def show_examples(self) -> None:
+        if self.runtime is None or self._busy:
+            return
+        self._run_call(ToolCall("show_help", {}), "What can WinAuto do?")
+
+    def dismiss_welcome(self) -> None:
+        if self.runtime is not None:
+            self.runtime.home.dismiss_welcome()
+        self.popup.home.welcome.hide()
 
     def maybe_morning_briefing(self) -> None:
         if self.runtime is None or self._busy or self.popup.has_chat:
@@ -350,6 +380,13 @@ class Controller(QObject):
             return
         home = self.runtime.home
         self._show_setup()
+        if home.welcome_due():
+            from winauto.ui.tray import pretty_hotkey
+
+            config = self.runtime.config
+            self.popup.home.welcome.show_welcome(pretty_hotkey(config.hotkey), config.start_with_windows)
+        else:
+            self.popup.home.welcome.hide()
         self.popup.home.refresh_greeting(home.user_name)
         self.popup.home.set_lists(home.suggestions(), home.recent())
         threading.Thread(target=self._collect_home_data, daemon=True, name="home").start()
@@ -360,7 +397,10 @@ class Controller(QObject):
         except Exception:
             log.debug("home data failed", exc_info=True)
             items = []
-        self.home_data.emit(items)
+        try:
+            self.home_data.emit(items)
+        except RuntimeError:  # the window closed while this ran (shutting down)
+            pass
 
     def _apply_home_data(self, items) -> None:
         self.popup.home.set_widgets(items)

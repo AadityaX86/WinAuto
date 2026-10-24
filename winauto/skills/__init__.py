@@ -37,6 +37,7 @@ BUILTIN: list[tuple[str, str]] = [
     ("briefing", "BriefingSkill"),
     ("focus", "FocusSkill"),
     ("voice", "VoiceSkill"),
+    ("help", "HelpSkill"),
 ]
 
 
