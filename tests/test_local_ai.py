@@ -116,6 +116,7 @@ def test_server_command_is_local_and_keyed(tmp_path):
     assert cmd[cmd.index("--mmproj") + 1] == "v.gguf"
     assert "--jinja" in cmd and cmd[cmd.index("--reasoning-budget") + 1] == "0"
     assert cmd[cmd.index("--fit") + 1] == "on"
+    assert cmd[cmd.index("--chat-template-kwargs") + 1] == '{"enable_thinking": false}'
     cpu = LlamaServer(Path("x"), Path("m"), tmp_path / "l", gpu=False, port=5001).command()
     assert cpu[cpu.index("--n-gpu-layers") + 1] == "0" and "--fit" not in cpu
     assert s.base_url == "http://127.0.0.1:5000/v1"

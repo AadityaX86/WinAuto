@@ -64,6 +64,7 @@ class LlamaServer:
             "--parallel", "1",
             "--jinja",                 # the model's own chat template, needed for tool calls
             "--reasoning-budget", "0",  # answer straight away; no hidden "thinking"
+            "--chat-template-kwargs", '{"enable_thinking": false}',  # same, for models that think by default
         ]
         if self.vision:
             cmd += ["--mmproj", str(self.vision)]

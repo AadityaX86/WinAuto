@@ -215,6 +215,7 @@ def test_extract_text_tool_calls():
     calls, rest = extract_text_tool_calls('{"name": "other", "arguments": {}}', names)
     assert calls == []
     assert strip_thinking("<think>hmm</think> Hello") == "Hello"
+    assert strip_thinking("Okay, the user wants a greeting.\n</think>\n\nHi!") == "Hi!"  # opening tag was in the prompt
 
 
 # ---------- Ollama client against a fake server ----------

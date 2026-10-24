@@ -32,20 +32,21 @@ def test_builtin_ai_end_to_end(tmp_path):
 
     client = BuiltinClient(ai)
     ok, message = client.check()
-    print(message)
+    print(ascii(message))
     assert ok, message + "\n" + (root / "logs" / "engine.log").read_text(errors="replace")[-3000:]
     assert ai.status().state == READY
 
     reply = client.chat([{"role": "system", "content": "You control the user's PC. Use the tools."},
                          {"role": "user", "content": "Set the volume to 30 percent."}], [SET_VOLUME])
-    print(reply)
+    print(ascii(reply))
     assert reply.tool_calls and reply.tool_calls[0].name == "set_volume"
     assert int(reply.tool_calls[0].arguments.get("level")) == 30
 
     tokens: list[str] = []
     streamed = client.chat([{"role": "user", "content": "Reply with one short greeting."}], [], on_token=tokens.append)
-    print(streamed.content)
+    print(ascii(streamed.content))
     assert streamed.content.strip() and "".join(tokens).strip()
+    assert "think>" not in streamed.content  # no hidden reasoning in the answer
 
     client.close()
     assert ai.status().state == INSTALLED
