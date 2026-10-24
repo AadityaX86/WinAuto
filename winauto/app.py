@@ -7,7 +7,7 @@ import logging
 import os
 import sys
 
-from PySide6.QtCore import QObject, QUrl, Signal
+from PySide6.QtCore import QObject, QTimer, QUrl, Signal
 from PySide6.QtGui import QDesktopServices
 from PySide6.QtNetwork import QLocalServer, QLocalSocket
 from PySide6.QtWidgets import QApplication
@@ -85,6 +85,7 @@ def main(argv: list[str] | None = None) -> int:
     apply_palette(app, pal)
 
     popup = PopupWindow(pal)
+    popup_hwnd = int(popup.winId())  # read here: Qt widgets must only be touched on this thread
     confirmer = QtConfirmer()
     controller = Controller(popup, confirmer)
     signals = _Signals()
@@ -123,7 +124,7 @@ def main(argv: list[str] | None = None) -> int:
                 from winauto.winos.windows import WindowsLayout
 
                 hwnd = WindowsLayout().foreground()
-                if hwnd and hwnd != int(popup.winId()):
+                if hwnd and hwnd != popup_hwnd:
                     runtime.ctx.services["last_window"] = hwnd
             except Exception:
                 log.debug("couldn't read the foreground window", exc_info=True)
@@ -165,12 +166,20 @@ def main(argv: list[str] | None = None) -> int:
 
     popup.settings_requested.connect(open_settings)
 
-    def check_model() -> None:
+    def check_model(try_start: bool = True) -> None:
         def done(result, error) -> None:
             ok, msg = result if result else (False, str(error))
-            if not ok:
-                popup.add_bot(f"⚠ {msg}\n\nQuick commands still work in the meantime.", error=True)
             log.info("Model check: %s", msg)
+            if ok:
+                return
+            if try_start and "isn't running" in msg:
+                from winauto.winos.ollama import start_ollama
+
+                if start_ollama():
+                    log.info("Started Ollama; checking again shortly")
+                    QTimer.singleShot(8000, lambda: check_model(try_start=False))
+                    return
+            popup.add_bot(f"⚠ {msg}\n\nQuick commands still work in the meantime.", error=True)
 
         run_async(runtime.llm.check, done)
 
