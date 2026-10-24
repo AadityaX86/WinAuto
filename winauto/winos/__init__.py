@@ -30,6 +30,8 @@ def run_hidden(args: list[str], timeout: float = 30, input_text: str | None = No
     return subprocess.run(
         args,
         input=input_text,
+        # A windowed exe has no console stdin to inherit ("handle is invalid").
+        stdin=None if input_text is not None else subprocess.DEVNULL,
         capture_output=True,
         text=True,
         timeout=timeout,
