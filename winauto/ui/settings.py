@@ -34,8 +34,9 @@ from winauto.ui.widgets import ToggleSwitch
 
 SUGGESTED_MODELS = ["qwen3:8b", "qwen3:14b", "qwen3:32b", "qwen2.5:7b", "llama3.1:8b", "mistral-nemo:12b"]
 VISION_MODELS = ["qwen2.5vl:7b", "gemma3:4b", "gemma3:12b", "llama3.2-vision:11b", "llava:7b"]
-BACKENDS = [("Ollama", "ollama"), ("OpenAI-compatible (LM Studio, llama.cpp…)", "openai")]
-DEFAULT_URLS = {"ollama": "http://localhost:11434", "openai": "http://localhost:1234/v1"}
+BACKENDS = [("Built-in (recommended)", "builtin"), ("Ollama", "ollama"),
+            ("OpenAI-compatible (LM Studio, llama.cpp…)", "openai")]
+DEFAULT_URLS = {"builtin": "http://localhost:11434", "ollama": "http://localhost:11434", "openai": "http://localhost:1234/v1"}
 THEMES = [("Match Windows", "system"), ("Dark", "dark"), ("Light", "light")]
 
 
@@ -219,8 +220,18 @@ class SettingsDialog(QDialog):
         self._row(c, "Weather location", "", self.weather)
         v.addStretch(1)
 
+    def _section(self, layout: QVBoxLayout, title: str) -> tuple[QWidget, QVBoxLayout]:
+        """A titled card that can be shown or hidden as a whole."""
+        box = QWidget()
+        v = QVBoxLayout(box)
+        v.setContentsMargins(0, 0, 0, 0)
+        v.setSpacing(6)
+        card = self._card(v, title)
+        layout.addWidget(box)
+        return box, card
+
     def _build_ai(self) -> None:
-        v = self._page("AI model", "sparkles", "WinAuto runs on a model on your own PC. Nothing is sent to an AI company.")
+        v = self._page("AI model", "sparkles", "WinAuto's AI runs on your own PC. Nothing is sent to an AI company.")
         c = self._card(v)
         self.backend = QComboBox()
         for label, value in BACKENDS:
@@ -228,7 +239,25 @@ class SettingsDialog(QDialog):
         values = [v_ for _, v_ in BACKENDS]
         self.backend.setCurrentIndex(values.index(self.config.llm.backend) if self.config.llm.backend in values else 0)
         self.backend.currentIndexChanged.connect(self._backend_changed)
-        self._row(c, "Server", "Ollama is recommended.", self.backend)
+        self._row(c, "AI engine", "Built-in needs no setup. Pick Ollama or another server if you already use one.",
+                  self.backend)
+
+        # Built-in AI
+        self.builtin_box, c = self._section(v, "Built-in AI")
+        self.builtin_model = QComboBox()
+        for model_id, label in self.service.builtin_models():
+            self.builtin_model.addItem(label, model_id)
+        current = self.config.llm.builtin_model or self.service.builtin_default()
+        index = self.builtin_model.findData(current)
+        self.builtin_model.setCurrentIndex(max(index, 0))
+        self._row(c, "Model", "Downloaded once, then works offline. Both understand screenshots.",
+                  self.builtin_model)
+        hardware = self.service.hardware()
+        if hardware:
+            self._row(c, "This PC", hardware, None)
+
+        # Ollama / OpenAI-compatible server
+        self.server_box, c = self._section(v, "Server")
         self.url = QLineEdit(self.config.llm.base_url)
         self._row(c, "Server address", "", self.url)
         model_box = QWidget()
@@ -248,11 +277,13 @@ class SettingsDialog(QDialog):
         self.vision.addItems(VISION_MODELS)
         self.vision.setCurrentText(self.config.llm.vision_model)
         self._row(c, "Vision model", "For “what's on my screen?”. Run: ollama pull qwen2.5vl:7b", self.vision)
+
+        c = self._card(v, "Options")
         self.num_ctx = QSpinBox()
         self.num_ctx.setRange(2048, 131072)
         self.num_ctx.setSingleStep(2048)
         self.num_ctx.setValue(self.config.llm.num_ctx)
-        self._row(c, "Context size", "How much the model can read at once. Bigger uses more memory.", self.num_ctx)
+        self._row(c, "Context size", "How much the model can read at once (Ollama). Bigger uses more memory.", self.num_ctx)
         self.stream = self._toggle(self.config.llm.stream)
         self._row(c, "Stream answers", "Show answers word by word as they're written.", self.stream)
         test_box = QWidget()
@@ -267,6 +298,7 @@ class SettingsDialog(QDialog):
         th.addWidget(self.test_result, 1)
         self._row(c, "Check", "", test_box, stretch_control=True)
         v.addStretch(1)
+        self._backend_changed()
 
     def _build_accounts(self) -> None:
         v = self._page("Accounts", "mail")
@@ -362,12 +394,16 @@ class SettingsDialog(QDialog):
 
     def _backend_changed(self) -> None:
         value = self.backend.currentData()
-        if self.url.text().strip() in DEFAULT_URLS.values():
+        self.builtin_box.setVisible(value == "builtin")
+        self.server_box.setVisible(value != "builtin")
+        if value != "builtin" and self.url.text().strip() in DEFAULT_URLS.values():
             self.url.setText(DEFAULT_URLS[value])
 
     def _collect(self) -> Config:
         cfg = copy.deepcopy(self.config)
         cfg.llm.backend = self.backend.currentData()
+        if cfg.llm.backend == "builtin":
+            cfg.llm.builtin_model = self.builtin_model.currentData() or cfg.llm.builtin_model
         cfg.llm.base_url = self.url.text().strip() or DEFAULT_URLS[cfg.llm.backend]
         cfg.llm.model = self.model.currentText().strip() or "qwen3:8b"
         cfg.llm.vision_model = self.vision.currentText().strip()

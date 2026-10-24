@@ -87,6 +87,14 @@ def main() -> int:
 
     check("credential manager", secrets_store)
 
+    def builtin_ai():
+        setup = rt.ai_setup
+        assert rt.local_ai.engine is not None or sys.platform not in ("win32", "linux"), "no engine for this system"
+        status = setup.status()
+        return f"{status.state}; model for this PC: {setup.recommended().name} ({setup.hardware()})"
+
+    check("built-in AI", builtin_ai)
+
     def ui():
         if sys.platform != "win32":
             os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")

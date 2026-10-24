@@ -145,6 +145,9 @@ def stylesheet(p: Palette) -> str:
     #Toast {{ color: {p.success}; font-size: 9pt; font-weight: 600; }}
     #Widget {{ background: {p.surface}; border: 1px solid {p.border}; border-radius: 10px; }}
     #WidgetText {{ font-size: 9.5pt; }}
+    QProgressBar#SetupProgress {{ background: {p.hover}; border: none; border-radius: 3px; min-height: 6px; max-height: 6px; }}
+    QProgressBar#SetupProgress::chunk {{ border-radius: 3px;
+        background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 {p.accent}, stop:1 {p.accent_2}); }}
     QScrollArea, #Conversation, #Transparent {{ background: transparent; border: none; }}
     QScrollBar:vertical {{ background: transparent; width: 10px; margin: 2px; }}
     QScrollBar::handle:vertical {{ background: {rgba(p.muted, 0.35)}; border-radius: 3px; min-height: 30px; margin: 0 2px; }}

@@ -2,7 +2,7 @@
 
 A private assistant and launcher for your Windows PC. Press **Ctrl+Alt+Space** and start typing: apps, settings and commands appear as you type, like Raycast or PowerToys Run. Or ask anything in plain English and it gets done: it opens apps, writes your emails and messages, keeps your todos and notes, reads your calendar, controls your PC, and more.
 
-The AI runs **on your own PC** (via [Ollama](https://ollama.com)), so your requests don't go to anyone's cloud. Everyday commands like `open spotify` or `volume 30` don't even need the AI; they run instantly.
+The AI runs **on your own PC**, so your requests don't go to anyone's cloud, and there's nothing else to install: on first run WinAuto downloads its own AI engine and model and sets them up for your graphics card. Everyday commands like `open spotify` or `volume 30` don't even need the AI; they run instantly.
 
 | Launcher | Results as you type |
 |---|---|
@@ -29,9 +29,11 @@ Anything that sends, deletes or shuts down shows an approval card first, and dra
 
 ## Get started
 
-1. Install [Ollama](https://ollama.com/download) and run `ollama pull qwen3:8b` (6–8 GB graphics card; [other sizes](docs/ai-models.md)).
-2. Download the **[latest release](https://github.com/AadityaX86/WinAuto/releases/latest)**: the zip (unzip, then run `WinAuto.exe`) or the single `WinAuto-<version>.exe`. Or run from source: `pip install -e .` then `python -m winauto`.
+1. Download the **[latest release](https://github.com/AadityaX86/WinAuto/releases/latest)**: the zip (unzip, then run `WinAuto.exe`) or the single `WinAuto-<version>.exe`.
+2. Run it. The first time, WinAuto downloads its AI by itself (3–6 GB, once; [which model](docs/ai-models.md)). Instant commands work meanwhile.
 3. Press **Ctrl+Alt+Space**.
+
+Prefer Ollama or LM Studio? Pick it in Settings. Running from source: `pip install -e .` then `python -m winauto`.
 
 Full steps: [Getting started](docs/getting-started.md). Gmail, WhatsApp, Discord and calendar: [Connect your accounts](docs/connect-accounts.md).
 

@@ -13,11 +13,18 @@ from winauto.paths import config_path
 log = logging.getLogger(__name__)
 
 
+# Bumped when a settings change needs a one-time upgrade of older config files.
+CONFIG_VERSION = 2
+
+
 @dataclass
 class LLMConfig:
-    # "ollama" uses Ollama's own API. "openai" works with any OpenAI-compatible
-    # local server (LM Studio, llama.cpp server, Jan, vLLM...).
-    backend: str = "ollama"
+    # "builtin": WinAuto's own engine and model, downloaded on first run (no install needed).
+    # "ollama": a separately installed Ollama. "openai": any OpenAI-compatible local
+    # server (LM Studio, llama.cpp server, Jan, vLLM...).
+    backend: str = "builtin"
+    # Built-in AI model (see adapters/local_ai/catalog.py); empty = pick for this PC on first run.
+    builtin_model: str = ""
     base_url: str = "http://localhost:11434"
     model: str = "qwen3:8b"
     # Ollama's default context window is small; tool definitions need room.
@@ -72,6 +79,9 @@ class Config:
     extra_sites: dict[str, str] = field(default_factory=dict)
     app_aliases: dict[str, str] = field(default_factory=dict)
 
+    # Which settings format this file was written in (see CONFIG_VERSION).
+    config_version: int = CONFIG_VERSION
+
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
@@ -116,7 +126,10 @@ def load_config(path: Path | None = None) -> Config:
     except (OSError, ValueError) as exc:
         log.warning("Could not read %s (%s); using defaults", path, exc)
         return Config()
-    return _merge(Config, data)
+    cfg = _merge(Config, data)
+    if isinstance(data, dict) and "config_version" not in data:
+        cfg.config_version = 1  # written by WinAuto 0.1
+    return cfg
 
 
 def save_config(cfg: Config, path: Path | None = None) -> None:

@@ -64,8 +64,8 @@ def render(version: str, repo: str = DEFAULT_REPO) -> str:
 | **WinAuto-{version}-windows.zip** | Recommended. Unzip it somewhere permanent (e.g. `C:\\Apps\\WinAuto`) and run `WinAuto.exe`. |
 | **WinAuto-{version}.exe** | The same app as a single file, nothing to unzip. Takes a few seconds longer to start. |
 
-WinAuto's AI runs on your PC through [Ollama](https://ollama.com/download): install it and run `ollama pull qwen3:8b` first. \
-Full steps: [Getting started](docs/getting-started.md).
+Nothing else to install: the first time it runs, WinAuto downloads its own AI (3–6 GB, once) and sets it up for \
+your graphics card. Full steps: [Getting started](docs/getting-started.md).
 
 Windows may say "Windows protected your PC" because the app isn't code-signed: click **More info → Run anyway**. \
 `SHA256SUMS.txt` lists the files' checksums.

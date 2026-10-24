@@ -12,6 +12,7 @@ Most settings are in the **Settings** window (sliders button in the popup, or th
 | Logs | `logs\winauto.log` in the data folder (tray → **Open log file**), rotated at 1 MB, 3 kept |
 | Gmail app password | Windows Credential Manager, entry `WinAuto` |
 | Start with Windows | Registry: `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`, value `WinAuto` |
+| Built-in AI (engine, models, engine log) | `%LOCALAPPDATA%\WinAuto\ai` (several GB; kept out of your roaming profile) |
 | Crash report (if it can't start) | `%TEMP%\winauto-crash.txt` |
 
 Set the environment variable `WINAUTO_HOME` to use a different data folder (handy for testing or keeping two profiles).
@@ -31,11 +32,12 @@ Set the environment variable `WINAUTO_HOME` to use a different data folder (hand
 | | Browser searches (google, bing, duckduckgo) | `search_engine` | `google` |
 | | Play music with (youtube, spotify) | `music_service` | `youtube` |
 | | Weather location (empty = guess from your connection) | `weather_location` | empty |
-| AI model | Server (Ollama or OpenAI-compatible) | `llm.backend` | `ollama` |
-| | Server address | `llm.base_url` | `http://localhost:11434` |
-| | Chat model | `llm.model` | `qwen3:8b` |
-| | Vision model | `llm.vision_model` | `qwen2.5vl:7b` |
-| | Context size | `llm.num_ctx` | `8192` |
+| AI model | AI engine (`builtin`, `ollama` or `openai`) | `llm.backend` | `builtin` |
+| | Built-in model (`qwen3-vl-8b` or `qwen3-vl-4b`; empty = pick for this PC) | `llm.builtin_model` | picked on first run |
+| | Server address (Ollama/OpenAI-compatible) | `llm.base_url` | `http://localhost:11434` |
+| | Chat model (Ollama/OpenAI-compatible) | `llm.model` | `qwen3:8b` |
+| | Vision model (Ollama/OpenAI-compatible) | `llm.vision_model` | `qwen2.5vl:7b` |
+| | Context size (Ollama) | `llm.num_ctx` | `8192` |
 | | Stream answers | `llm.stream` | on |
 | Accounts | Gmail address | `email.address` | empty |
 | | App password | Credential Manager | |
@@ -61,6 +63,7 @@ Close WinAuto (tray → Quit) before editing `config.json` by hand, or your chan
 | `llm.api_key` | `""` | For OpenAI-compatible servers that need one. |
 | `email.display_name` | `""` | Name on sent emails (defaults to your name). |
 | `history_turns` | `6` | How many past exchanges the AI remembers in a chat. |
+| `config_version` | `2` | Settings format; WinAuto upgrades older files once by itself. |
 | `max_steps` | `6` | Most tool rounds the AI may take for one request. |
 | `extra_sites` | `{}` | Your own website names for "open …", e.g. `{"bank": "https://mybank.com"}` |
 | `app_aliases` | `{}` | Your own app names, e.g. `{"editor": "Visual Studio Code", "music": "Spotify"}` |
@@ -89,4 +92,4 @@ Example:
 ## Starting over
 
 - **Reset settings:** quit WinAuto and delete `config.json`. Defaults are recreated on the next start.
-- **Delete all your data:** quit WinAuto and delete the data folder, and the `WinAuto` entry in Credential Manager.
+- **Delete all your data:** quit WinAuto and delete the data folder, `%LOCALAPPDATA%\WinAuto` (the AI files), and the `WinAuto` entry in Credential Manager.

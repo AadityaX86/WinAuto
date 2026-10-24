@@ -83,3 +83,13 @@ def wifi_network() -> tuple[str, str] | None:
     ssid = re.search(r"^\s*SSID\s*:\s*(.+)$", out, re.M)
     signal = re.search(r"^\s*Signal\s*:\s*(.+)$", out, re.M)
     return (ssid.group(1).strip(), signal.group(1).strip() if signal else "") if ssid else None
+
+
+def total_ram() -> int:
+    """Installed memory in bytes (0 if unknown)."""
+    try:
+        import psutil
+
+        return int(psutil.virtual_memory().total)
+    except Exception:
+        return 0

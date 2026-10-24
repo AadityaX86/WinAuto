@@ -36,6 +36,33 @@ jobs:
       - name: Run tests
         run: python -m pytest -q
 
+  engine:
+    name: Built-in AI (${{ matrix.os }})
+    needs: test
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    env:
+      WINAUTO_ENGINE_TEST: "1"
+      WINAUTO_ENGINE_DIR: ${{ github.workspace }}/.engine-cache
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Reuse downloaded engine and test model
+        uses: actions/cache@v4
+        with:
+          path: .engine-cache
+          key: engine-${{ runner.os }}-${{ hashFiles('winauto/adapters/local_ai/catalog.py') }}
+      - name: Install
+        run: python -m pip install -e ".[dev]"
+      - name: Download, start and use the real engine
+        run: python -m pytest -q -s tests/test_engine_live.py
+
   build:
     name: Build WinAuto.exe
     needs: test

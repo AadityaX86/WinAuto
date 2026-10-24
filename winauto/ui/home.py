@@ -14,9 +14,8 @@ from PySide6.QtWidgets import (
 
 from winauto.core.skill import Suggestion
 from winauto.ui.icons import pixmap
-from winauto.ui.parts import (
-    clear_layout,
-)
+from winauto.ui.parts import clear_layout
+from winauto.ui.setup import SetupCard
 from winauto.ui.theme import Palette
 from winauto.ui.widgets import ResultList
 
@@ -38,6 +37,12 @@ class HomeView(QWidget):
         head.addWidget(self.greeting)
         head.addWidget(self.sub)
         v.addLayout(head)
+        # Built-in AI download/loading progress (hidden when there's nothing to say).
+        self.setup = SetupCard(palette)
+        setup_box = QHBoxLayout()
+        setup_box.setContentsMargins(22, 8, 22, 0)
+        setup_box.addWidget(self.setup)
+        v.addLayout(setup_box)
         self.widgets_row = QHBoxLayout()
         self.widgets_row.setContentsMargins(22, 8, 22, 2)
         self.widgets_row.setSpacing(8)
