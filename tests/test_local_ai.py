@@ -258,6 +258,32 @@ def test_builtin_client_messages(ai):
     assert ok and "Tiny VL" in msg
 
 
+def test_builtin_client_streams_with_a_length_cap(ai, monkeypatch):
+    """Always streamed and capped, so a slow or rambling answer can't tie up the engine."""
+    from winauto.adapters.llm import builtin
+    from winauto.core.llm import LLMError, LLMReply
+
+    seen = {}
+
+    class FakeClient:
+        def __init__(self, **kwargs):
+            seen["init"] = kwargs
+
+        def chat(self, messages, tools, on_token=None):
+            seen["on_token"] = on_token
+            if messages[-1]["content"] == "slow":
+                raise LLMError("The AI model took too long to answer.")
+            return LLMReply(content="Paris.")
+
+    monkeypatch.setattr(builtin, "OpenAICompatClient", FakeClient)
+    ai.install()
+    client = builtin.BuiltinClient(ai)
+    assert client.chat([{"role": "user", "content": "capital of france?"}], []).content == "Paris."
+    assert seen["init"]["max_tokens"] == builtin.MAX_ANSWER_TOKENS and callable(seen["on_token"])
+    with pytest.raises(LLMError, match="small model in Settings"):
+        client.chat([{"role": "user", "content": "slow"}], [])
+
+
 # ---------------- first-run setup service ----------------
 
 

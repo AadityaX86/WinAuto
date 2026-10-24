@@ -43,6 +43,15 @@ class Deny:
 
 def run(rt, text: str, expect: str | None = None, expect_tool: str | None = None) -> None:
     started = time.monotonic()
+    first: list[float] = []
+    count = [0]
+
+    def on_token(piece: str) -> None:
+        if piece and not first:
+            first.append(time.monotonic() - started)
+        count[0] += bool(piece)
+
+    rt.agent.on_token = on_token
     try:
         reply = rt.agent.handle(text)
     except Exception as exc:  # noqa: BLE001 - report every crash
@@ -51,7 +60,8 @@ def run(rt, text: str, expect: str | None = None, expect_tool: str | None = None
         return
     took = time.monotonic() - started
     steps = ", ".join(f"{s.label or s.tool}{'' if s.result.ok else ' (failed)'}" for s in reply.steps) or "-"
-    model = " +AI" if reply.used_model else ""
+    model = f" +AI, first words after {first[0]:.1f}s, {count[0]} pieces" if reply.used_model and first else (
+        " +AI" if reply.used_model else "")
     line(f">>  {text!r}  [{took:.1f}s{model}] tools: {steps}")
     for row in (reply.text or "(no text)").splitlines()[:12]:
         line(f"      {row}")
@@ -108,19 +118,34 @@ def ai(rt) -> None:
     ai.ensure_running()
     line(f"  engine loaded: {time.monotonic() - started:.0f}s")
     rt.ctx.host.selection = ""
-    for text in ["what is the capital of france?",
-                 "add buy eggs and call the bank to my todo list",
+    run(rt, "what is the capital of france?", expect="paris")
+    for text in ["add buy eggs and call the bank to my todo list",
                  "what do I need to do?",
-                 "email ram@example.com that the meeting moved to 3pm",
-                 "who won the football world cup in 2022?",
-                 "what's on my screen?",
-                 "open notepad and set the volume to 40",
-                 "close it"]:
+                 "email ram@example.com that the meeting moved to 3pm"]:
+        run(rt, text)
+    run(rt, "who won the football world cup in 2022?", expect="argentina")
+    for text in ["what's on my screen?", "open notepad and set the volume to 40", "close it"]:
         run(rt, text)
     rt.ctx.host.selection = "i has went to the shop yesterday and buyed three apple"
-    run(rt, "fix the grammar")
+    run(rt, "fix the grammar", expect="bought")
     run(rt, "translate this to nepali")
     ai.stop()
+    engine_log(ai)
+
+
+def engine_log(ai) -> None:
+    """What the engine says about the hardware it used and how fast each answer was."""
+    line("\n=== Engine log (devices, threads, speed)")
+    try:
+        text = (ai.root / "logs" / "engine.log").read_text(encoding="utf-8", errors="replace")
+    except OSError as exc:
+        line(f"  (no log: {exc})")
+        return
+    keep = ("vulkan", "device", "offload", "system_info", "n_threads", "threads", "prompt eval time", "eval time",
+            "total time", "cancel", "error", "n_ctx", "model params")
+    for row in text.splitlines():
+        if any(k in row.lower() for k in keep):
+            line("  " + row.strip()[:220])
 
 
 def main() -> int:

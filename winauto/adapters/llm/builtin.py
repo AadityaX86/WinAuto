@@ -9,12 +9,17 @@ from winauto.adapters.local_ai.manager import DOWNLOADING, ERROR, MISSING, Local
 from winauto.adapters.local_ai.server import EngineError
 from winauto.core.llm import LLMError, LLMReply
 
+# Long enough for an email or a rewritten page; stops a model that rambles from tying up the engine.
+MAX_ANSWER_TOKENS = 1536
+
 
 class BuiltinClient:
-    def __init__(self, ai: LocalAI, temperature: float = 0.2, timeout: float = 180.0):
+    def __init__(self, ai: LocalAI, temperature: float = 0.2, timeout: float = 180.0,
+                 max_tokens: int = MAX_ANSWER_TOKENS):
         self.ai = ai
         self.temperature = temperature
         self.timeout = timeout
+        self.max_tokens = max_tokens
 
     @property
     def model(self) -> str:
@@ -33,12 +38,22 @@ class BuiltinClient:
         except EngineError as exc:
             raise LLMError(str(exc)) from exc
         return OpenAICompatClient(base_url=server.base_url, model="winauto", temperature=self.temperature,
-                                  timeout=self.timeout, api_key=server.api_key)
+                                  timeout=self.timeout, api_key=server.api_key, max_tokens=self.max_tokens)
 
     def chat(self, messages: list[dict[str, Any]], tools: list[dict[str, Any]],
              on_token: Callable[[str], None] | None = None, model: str | None = None) -> LLMReply:
         # One model does both chat and images, so a requested vision model needs nothing special.
-        return self._client().chat(messages, tools, on_token=on_token)
+        # Always streamed: the time limit then applies between pieces of the answer (a slow PC that's
+        # still writing isn't cut off), and giving up closes the connection, which stops the engine
+        # working on an answer nobody will read.
+        try:
+            return self._client().chat(messages, tools, on_token=on_token or _ignore)
+        except LLMError as exc:
+            if "too long" in str(exc):
+                raise LLMError("The AI took too long to answer. On a PC without a graphics card it runs on the "
+                               "processor, which is slow for long requests: try a shorter one, or the small model "
+                               "in Settings → AI model.") from exc
+            raise
 
     def check(self) -> tuple[bool, str]:
         status = self.ai.status()
@@ -52,3 +67,7 @@ class BuiltinClient:
 
     def close(self) -> None:
         self.ai.stop()
+
+
+def _ignore(_text: str) -> None:
+    pass

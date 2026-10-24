@@ -402,13 +402,22 @@ class AppsSkill(Skill):
         if not q or len(q.split()) > 4:
             return []
         apps = self._all_apps()
+        nq = normalize(q)
+        found: dict[str, float] = {name: min(sc, 99) for name, sc in rank(q, apps.keys(), limit=4, cutoff=72)}
+        # What people call it: "cmd" is Command Prompt, "edge" is Microsoft Edge.
+        user_aliases = {normalize(k): v for k, v in self.ctx.config.app_aliases.items()}
+        canonical = normalize(user_aliases.get(nq) or ALIASES.get(nq, ""))
+        for name in apps:
+            if canonical and normalize(name) == canonical:
+                found[name] = 99
+            elif len(nq) >= 3 and name not in found and any(w.startswith(nq) for w in normalize(name).split()[1:]):
+                found[name] = 84  # a later word: "edge" → Microsoft Edge, "studio" → Visual Studio Code
         out = []
-        for name, sc in rank(q, apps.keys(), limit=4, cutoff=72):
+        for name, sc in sorted(found.items(), key=lambda item: -item[1])[:4]:
             entry = apps[name]
             icon_file = entry.icon or (entry.target if entry.kind == "path" else "")
             out.append(Suggestion(title=name, subtitle="Application", tool="open_app", args={"name": name},
-                                  kind="App", icon=f"file:{icon_file}" if icon_file else "app", score=min(sc, 99)))
-        nq = normalize(q)
+                                  kind="App", icon=f"file:{icon_file}" if icon_file else "app", score=sc))
         if len(nq) >= 2:
             for w in self._windows_cached():
                 title_n = normalize(w.title)

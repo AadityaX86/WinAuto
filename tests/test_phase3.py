@@ -115,6 +115,8 @@ def test_organize_downloads(files):
     assert (tree / "Downloads/Installers/setup.exe").exists()
     assert (tree / "Downloads/partial.crdownload").exists()  # unfinished downloads stay put
     assert skill.organize_downloads().message == "Downloads is already tidy."
+    # Nothing left to move: no approval card, just the answer.
+    assert skill.precheck("organize_downloads", {}).message.startswith("Downloads is already tidy")
 
 
 def test_largest_recent_delete_create(files):

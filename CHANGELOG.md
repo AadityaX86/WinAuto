@@ -28,6 +28,14 @@ Fixes and polish from using WinAuto the way a new user would, on a real Windows 
 - Approval cards fit their text, and a new card scrolls so its title is in view.
 - No approval card for something that can't work: if Gmail isn't set up yet, or a WhatsApp contact is unknown, WinAuto says so straight away (and keeps the email draft) instead of after you press Send.
 - A shortcut already taken by another app now says where to change it, and that the tray icon still opens WinAuto.
+- "Organize my downloads" no longer asks for approval when there's nothing to move.
+- `cmd`, `edge`, `code` and other everyday names find their apps as you type, and so does a later word of an app's name ("studio" → Visual Studio Code).
+- Chat step ticks read "✓ Set volume to 40%" instead of "✓ set volume".
+
+### Built-in AI
+- Answers are capped in length and always streamed. Before, one slow or rambling answer on a PC without a graphics card could keep the engine busy after WinAuto gave up waiting, so the next questions timed out too.
+- When the AI is too slow, the message says why (no graphics card) and what helps (shorter requests, the small model).
+- "Fix grammar" corrects mistakes instead of sometimes returning the text unchanged.
 - Settings records shortcuts by pressing them, instead of typing "ctrl+alt+space"; Backspace turns the writing-tools shortcut off.
 
 ### Under the hood

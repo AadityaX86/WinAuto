@@ -330,6 +330,15 @@ class FilesSkill(Skill):
         target.mkdir(parents=True)
         return ok(f"Created {clean} in {base.name}.", data={"path": str(target)})
 
+    def precheck(self, tool_name: str, args: dict[str, Any]) -> ToolResult | None:
+        if tool_name == "organize_downloads":
+            downloads, plan = self._sort_plan()
+            if downloads is None:
+                return fail("I can't find your Downloads folder.")
+            if not plan:
+                return ok("Downloads is already tidy: nothing to move.")  # no card for nothing
+        return None
+
     def preview(self, tool_name: str, args: dict[str, Any]) -> str | None:
         if tool_name == "organize_downloads":
             downloads, plan = self._sort_plan()

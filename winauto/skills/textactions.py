@@ -14,7 +14,9 @@ from winauto.core.skill import QuickRule, Skill, ToolResult, fail, ok, tool
 
 ACTIONS: dict[str, tuple[str, str, str]] = {
     # key: (button label, icon, instruction)
-    "fix": ("Fix grammar", "check", "Fix spelling, grammar and punctuation. Keep the meaning, tone and language. Change as little as possible."),
+    "fix": ("Fix grammar", "check", "Correct every spelling, grammar and punctuation mistake, for example "
+            "\"she dont like apple\" becomes \"She doesn't like apples.\". Keep the meaning, tone and language, "
+            "and don't add anything new."),
     "formal": ("Make formal", "briefcase", "Rewrite it in a clear, polite, professional tone."),
     "casual": ("Make casual", "smile", "Rewrite it in a relaxed, friendly tone."),
     "shorter": ("Shorter", "minimize", "Make it about half as long while keeping the key points."),

@@ -198,6 +198,11 @@ def test_volume_and_search_words(runtime):
     assert sum(s.tool == "open_website" for s in runtime.launcher.search("whatsapp")) == 1
 
 
+def test_apps_by_everyday_names(runtime):
+    assert top(runtime, "cmd").title == "Command Prompt"  # an alias
+    assert top(runtime, "studio").title == "Visual Studio Code"  # a later word of the name
+
+
 def test_help_works_without_the_ai(runtime):
     assert top(runtime, "help").tool == "show_help"
     assert top(runtime, "what can you do").tool == "show_help"
