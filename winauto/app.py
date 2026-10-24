@@ -71,7 +71,7 @@ def main(argv: list[str] | None = None) -> int:
     from winauto.ui.controller import Controller, QtConfirmer
     from winauto.ui.popup import PopupWindow
     from winauto.ui.settings import SettingsDialog
-    from winauto.ui.theme import app_icon, base_font, palette, stylesheet
+    from winauto.ui.theme import app_icon, apply_palette, base_font, palette, stylesheet
     from winauto.ui.tray import Tray, pretty_hotkey
     from winauto.winos.hotkey import HotkeyListener
     from winauto.winos.startup import set_start_with_windows
@@ -81,6 +81,7 @@ def main(argv: list[str] | None = None) -> int:
     app.setFont(base_font())
     pal = palette()
     app.setStyleSheet(stylesheet(pal))
+    apply_palette(app, pal)
 
     popup = PopupWindow(pal)
     confirmer = QtConfirmer()

@@ -36,9 +36,19 @@ class EmailConfig:
 
 
 @dataclass
+class MessagingConfig:
+    # Added to phone numbers saved without one, e.g. "977" for Nepal, "91" for India.
+    default_country_code: str = ""
+    # Press Enter for you after the message is typed in. Off = you press it.
+    whatsapp_auto_send: bool = True
+    discord_auto_send: bool = True
+
+
+@dataclass
 class Config:
     llm: LLMConfig = field(default_factory=LLMConfig)
     email: EmailConfig = field(default_factory=EmailConfig)
+    messaging: MessagingConfig = field(default_factory=MessagingConfig)
     hotkey: str = "ctrl+alt+space"
     start_with_windows: bool = False
     search_engine: str = "google"  # google, bing, duckduckgo

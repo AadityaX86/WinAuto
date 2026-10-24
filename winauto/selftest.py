@@ -32,7 +32,7 @@ def main() -> int:
     from winauto.runtime import Runtime
 
     rt = Runtime(DenyAll())
-    expected_skills = {"apps", "notes", "web", "utils", "system"}
+    expected_skills = {"apps", "notes", "web", "utils", "system", "contacts", "reminders", "email", "whatsapp"}
 
     def skills():
         loaded = {s.name for s in rt.registry.skills}
@@ -66,6 +66,17 @@ def main() -> int:
         return f"powershell ok, {len(list_windows())} windows"
 
     check("windows", windows_layer)
+
+    def secrets_store():
+        if sys.platform != "win32":
+            return "skipped (not Windows)"
+        import keyring
+
+        backend = type(keyring.get_keyring()).__module__
+        assert "fail" not in backend and "null" not in backend, backend
+        return backend
+
+    check("credential manager", secrets_store)
 
     def ui():
         os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")

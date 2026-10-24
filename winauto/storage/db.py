@@ -34,6 +34,31 @@ MIGRATIONS: list[str] = [
     );
     CREATE TABLE kv (key TEXT PRIMARY KEY, value TEXT);
     """,
+    # 2: contacts and reminders/timers
+    """
+    CREATE TABLE contacts (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        nickname TEXT NOT NULL DEFAULT '',
+        email TEXT NOT NULL DEFAULT '',
+        phone TEXT NOT NULL DEFAULT '',
+        discord TEXT NOT NULL DEFAULT '',
+        notes TEXT NOT NULL DEFAULT '',
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+    );
+    CREATE TABLE reminders (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        text TEXT NOT NULL,
+        kind TEXT NOT NULL DEFAULT 'reminder',
+        due_at TEXT NOT NULL,
+        repeat TEXT NOT NULL DEFAULT 'none',
+        active INTEGER NOT NULL DEFAULT 1,
+        created_at TEXT NOT NULL,
+        fired_at TEXT
+    );
+    CREATE INDEX reminders_due ON reminders(active, due_at);
+    """,
 ]
 
 

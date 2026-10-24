@@ -25,9 +25,11 @@ _FILLER_START = re.compile(
 _FILLER_END = re.compile(r"(?:\s*,?\s*(?:please|pls|plz|for me|thanks|thank you))+$", re.I)
 
 
-def clean_command(text: str) -> str:
+def clean_command(text: str, keep_punctuation: bool = False) -> str:
     text = " ".join((text or "").split())
     text = _FILLER_START.sub("", text)
+    if keep_punctuation:
+        return text.strip()
     text = text.rstrip(" .!?")
     text = _FILLER_END.sub("", text)
     return text.strip()
@@ -47,12 +49,19 @@ class QuickMatcher:
 
     def match(self, text: str) -> ToolCall | None:
         cleaned = clean_command(text)
-        if not cleaned or len(cleaned) > 120:
+        if not cleaned or len(cleaned) > 300:
             return None
+        # Messages and notes should keep their punctuation ("happy birthday!"),
+        # so try the text with punctuation first, then without.
+        variants = list(dict.fromkeys([clean_command(text, keep_punctuation=True), cleaned]))
         rules = [rule for skill in self.registry.skills for rule in skill.quick_rules()]
         rules.sort(key=lambda r: r.priority)  # stable: skill order breaks ties
         for rule in rules:
-            m = re.fullmatch(rule.pattern, cleaned, re.I)
+            m = None
+            for variant in variants:
+                m = re.fullmatch(rule.pattern, variant, re.I)
+                if m:
+                    break
             if not m:
                 continue
             try:

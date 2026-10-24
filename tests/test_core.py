@@ -352,6 +352,7 @@ def test_tool_selection_narrows_and_falls_back(ctx):
     names = lambda skills: sorted(s.name for s in skills)  # noqa: E731
     assert names(rt.registry.select("turn the volume down a bit")) == ["system", "utils", "web"]
     assert "notes" in names(rt.registry.select("add milk to my list"))
-    assert names(rt.registry.select("tell me a joke")) == ["apps", "notes", "system", "utils", "web"]
+    assert names(rt.registry.select("tell me a joke")) == sorted(s.name for s in rt.registry.skills)
+    assert "whatsapp" in names(rt.registry.select("tell ram I'm running late"))
     # A follow-up keeps the previous request's skills.
     assert "notes" in names(rt.registry.select("make it due friday", "todo pay rent"))

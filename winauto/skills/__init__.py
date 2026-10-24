@@ -17,6 +17,10 @@ BUILTIN: list[tuple[str, str]] = [
     ("web", "WebSkill"),
     ("utils", "UtilsSkill"),
     ("system", "SystemSkill"),
+    ("contacts", "ContactsSkill"),
+    ("reminders", "RemindersSkill"),
+    ("gmail", "EmailSkill"),
+    ("whatsapp", "WhatsAppSkill"),
 ]
 
 

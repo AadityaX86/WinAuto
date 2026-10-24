@@ -17,18 +17,21 @@ from PySide6.QtWidgets import (
     QLineEdit,
     QPushButton,
     QSpinBox,
+    QTabWidget,
     QVBoxLayout,
     QWidget,
 )
 
 from winauto.config import Config
 from winauto.core.llm import OllamaClient, make_client
+from winauto.secrets import get_secret, set_secret
 from winauto.ui.async_util import run_async
 from winauto.winos.hotkey import parse_hotkey
 
 SUGGESTED_MODELS = ["qwen3:8b", "qwen3:14b", "qwen2.5:7b", "llama3.1:8b", "mistral-nemo:12b"]
 BACKENDS = [("Ollama", "ollama"), ("OpenAI-compatible (LM Studio, llama.cpp...)", "openai")]
 DEFAULT_URLS = {"ollama": "http://localhost:11434", "openai": "http://localhost:1234/v1"}
+GMAIL_SECRET = "gmail-app-password"  # same name the Gmail skill reads
 
 
 class SettingsDialog(QDialog):
@@ -39,7 +42,20 @@ class SettingsDialog(QDialog):
         self.setWindowTitle("WinAuto settings")
         self.setMinimumWidth(560)
         self.config = copy.deepcopy(config)
-        layout = QVBoxLayout(self)
+        outer = QVBoxLayout(self)
+        self.tabs = QTabWidget()
+        outer.addWidget(self.tabs)
+
+        def page(title: str) -> QVBoxLayout:
+            w = QWidget()
+            v = QVBoxLayout(w)
+            self.tabs.addTab(w, title)
+            return v
+
+        general_page = page("General")
+        ai_page = page("AI model")
+        accounts_page = page("Email && messages")
+        layout = ai_page
 
         # --- AI model ---
         ai = QGroupBox("Local AI model")
@@ -77,6 +93,8 @@ class SettingsDialog(QDialog):
         test_row.addWidget(self.test_result, 1)
         form.addRow("", test_row)
         layout.addWidget(ai)
+        layout.addStretch(1)
+        layout = general_page
 
         # --- General ---
         general = QGroupBox("General")
@@ -101,9 +119,58 @@ class SettingsDialog(QDialog):
         self.weather.setPlaceholderText("City for weather, e.g. Kathmandu (blank = auto)")
         gform.addRow("Weather location", self.weather)
         layout.addWidget(general)
+        layout.addStretch(1)
+        layout = accounts_page
+
+        # --- Email ---
+        mail = QGroupBox("Email (Gmail)")
+        mform = QFormLayout(mail)
+        self.email_address = QLineEdit(self.config.email.address)
+        self.email_address.setPlaceholderText("you@gmail.com")
+        mform.addRow("Gmail address", self.email_address)
+        self.email_password = QLineEdit()
+        self.email_password.setEchoMode(QLineEdit.EchoMode.Password)
+        self._had_password = bool(get_secret(GMAIL_SECRET))
+        self.email_password.setPlaceholderText("saved (type to change)" if self._had_password else "16-letter app password")
+        mform.addRow("App password", self.email_password)
+        help_label = QLabel(
+            'Create one at <a href="https://myaccount.google.com/apppasswords">myaccount.google.com/apppasswords</a>'
+            "<br>(needs 2-Step Verification). Saved in Windows Credential Manager."
+        )
+        help_label.setOpenExternalLinks(True)
+        help_label.setObjectName("Muted")
+        mform.addRow("", help_label)
+        self.email_signature = QLineEdit(self.config.email.signature)
+        self.email_signature.setPlaceholderText("Optional, added to the end of emails")
+        mform.addRow("Signature", self.email_signature)
+        mail_test_row = QHBoxLayout()
+        mail_test = QPushButton("Test Gmail")
+        mail_test.clicked.connect(self._test_mail)
+        self.mail_result = QLabel("")
+        self.mail_result.setWordWrap(True)
+        mail_test_row.addWidget(mail_test)
+        mail_test_row.addWidget(self.mail_result, 1)
+        mform.addRow("", mail_test_row)
+        layout.addWidget(mail)
+
+        # --- Messaging ---
+        msg = QGroupBox("Messaging")
+        msgform = QFormLayout(msg)
+        self.country_code = QLineEdit(self.config.messaging.default_country_code)
+        self.country_code.setPlaceholderText("e.g. 977 for Nepal, 91 for India")
+        msgform.addRow("Your country code", self.country_code)
+        self.wa_auto = QCheckBox("Press Send in WhatsApp for me after I approve")
+        self.wa_auto.setChecked(self.config.messaging.whatsapp_auto_send)
+        msgform.addRow("", self.wa_auto)
+        self.discord_auto = QCheckBox("Press Send in Discord for me after I approve")
+        self.discord_auto.setChecked(self.config.messaging.discord_auto_send)
+        msgform.addRow("", self.discord_auto)
+        layout.addWidget(msg)
 
         for section in extra_sections or []:
             layout.addWidget(section)
+        layout.addStretch(1)
+        layout = outer
 
         self.error = QLabel("")
         self.error.setObjectName("Muted")
@@ -130,7 +197,27 @@ class SettingsDialog(QDialog):
         cfg.use_quick_commands = self.quick.isChecked()
         cfg.search_engine = self.search_engine.currentText()
         cfg.weather_location = self.weather.text().strip()
+        cfg.email.address = self.email_address.text().strip()
+        cfg.email.signature = self.email_signature.text().strip()
+        cfg.messaging.default_country_code = self.country_code.text().strip().lstrip("+")
+        cfg.messaging.whatsapp_auto_send = self.wa_auto.isChecked()
+        cfg.messaging.discord_auto_send = self.discord_auto.isChecked()
         return cfg
+
+    def _test_mail(self) -> None:
+        from winauto.skills.gmail import GmailBackend
+
+        address = self.email_address.text().strip()
+        password = self.email_password.text().strip() or get_secret(GMAIL_SECRET) or ""
+        if not address or not password:
+            self.mail_result.setText("Enter your Gmail address and app password first.")
+            return
+        self.mail_result.setText("Signing in…")
+
+        def done(result, error):
+            self.mail_result.setText(f"✓ {result}" if not error else f"✗ {error}")
+
+        run_async(lambda: GmailBackend(address, password).check(), done)
 
     def _refresh_models(self) -> None:
         cfg = self._collect()
@@ -171,6 +258,10 @@ class SettingsDialog(QDialog):
             parse_hotkey(cfg.hotkey)
         except ValueError as exc:
             self.error.setText(str(exc))
+            return
+        new_password = self.email_password.text().strip()
+        if new_password and not set_secret(GMAIL_SECRET, new_password.replace(" ", "")):
+            self.error.setText("Couldn't save the app password in Windows Credential Manager.")
             return
         self.saved.emit(cfg)
         self.accept()

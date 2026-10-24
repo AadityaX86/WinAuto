@@ -46,6 +46,8 @@ jobs:
           pyinstaller --noconfirm --clean --windowed --name WinAuto
           --icon packaging/winauto.ico
           --collect-submodules winauto
+          --collect-submodules keyring
+          --collect-submodules win32ctypes
           --hidden-import pycaw.pycaw
           --hidden-import comtypes.stream
           packaging/launcher.py

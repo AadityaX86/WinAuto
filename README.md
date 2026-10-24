@@ -19,10 +19,14 @@ The AI runs **on your own PC** (via [Ollama](https://ollama.com)), so your reque
 | Power | `shut down in 30 minutes` · `restart` · `cancel shutdown` · `sleep` |
 | PC health | `battery` · `why is my laptop so slow` · `empty the recycle bin` |
 | Quick maths | `15% of 2400` · `convert 10 km to miles` · `time in Tokyo` |
+| Email (Gmail) | `email Ram that the meeting moved to 3pm` · `check my email` · `emails from Sita` · `reply to the last one saying thanks` |
+| WhatsApp | `tell Ram I'm running 10 minutes late on WhatsApp` · `whatsapp mom: reached home` |
+| Reminders | `remind me to call mom at 6pm` · `remind me to drink water every day at 10am` · `pasta timer 8 min` · `show my reminders` |
+| Contacts | `add contact Ram Sharma ram@example.com +977 9800000000` · `what's Sita's number` · import from Google Contacts (.csv/.vcf) |
 
 Anything that sends, deletes or shuts down shows a card first, and nothing happens until you press the button. Email and message drafts can be edited on that card before sending.
 
-Coming next: Gmail, contacts, reminders and timers, WhatsApp, Discord, files, clipboard, media keys, window snapping, and routines.
+Coming next: Discord, files, clipboard, media keys, window snapping, screenshots, and routines.
 
 ## Setup
 
@@ -64,7 +68,24 @@ pip install -e .
 python -m winauto
 ```
 
-### 3. Use it
+### 3. Connect Gmail (optional)
+
+WinAuto signs in to Gmail with an **app password**, a 16-letter code that only works for mail. Your real password is never used.
+
+1. Turn on 2-Step Verification for your Google account (https://myaccount.google.com/security) if it isn't already.
+2. Go to **https://myaccount.google.com/apppasswords**, type `WinAuto` as the name, and copy the 16-letter code.
+3. In WinAuto: **Settings → Email & messages**, enter your Gmail address and paste the code, then press **Test Gmail**.
+
+The code is stored in Windows Credential Manager. To revoke it at any time, delete it on the same Google page.
+
+### 4. WhatsApp and contacts (optional)
+
+- Install **WhatsApp Desktop** from the Microsoft Store and sign in. Without it, WinAuto falls back to WhatsApp Web in your browser, where you press Enter yourself.
+- Save people with `add contact Ram Sharma +977 9800000000`, or import a Google Contacts export: `import contacts from C:\Users\you\Downloads\contacts.csv`.
+- In **Settings → Email & messages**, set your country code (e.g. `977`) so numbers saved without one still work.
+- WinAuto opens the chat with your message typed in, then presses Enter after you approve. Turn that off in Settings if you'd rather press Enter yourself.
+
+### 5. Use it
 
 - Press **Ctrl+Alt+Space** to open or close the popup (changeable in Settings).
 - **Esc** hides it. **Up/Down** recalls earlier commands. **＋** starts a new chat.
@@ -76,6 +97,7 @@ python -m winauto
 - Your notes, todos and settings live in `%APPDATA%\WinAuto` on your PC.
 - Requests go to the AI model on your own PC (Ollama). Nothing goes to an AI company.
 - Web searches go to DuckDuckGo, and weather comes from wttr.in. Only the search words or city are sent.
+- Email goes directly between your PC and Gmail. The app password lives in Windows Credential Manager.
 
 ## Troubleshooting
 
@@ -86,6 +108,8 @@ python -m winauto
 | Slow answers | Use a smaller model, or close other GPU-heavy apps. Quick commands stay instant. |
 | Hotkey doesn't work | Another app uses it. Pick another in Settings, e.g. `ctrl+shift+space`. |
 | Brightness doesn't change | Brightness control only works on built-in laptop screens. |
+| Gmail "rejected the sign-in" | Make a new app password (step 3) and paste it in Settings. Your normal password won't work. |
+| WhatsApp message typed but not sent | Keep WhatsApp signed in. If another window jumps in front, WinAuto won't press Enter; press it yourself. |
 | Something else | Tray icon → **Open log file**, and share the last lines. |
 
 Check a packaged build with `WinAuto.exe --selftest` (writes a report to your temp folder).
@@ -110,7 +134,8 @@ winauto/
     skill.py        Skill base class and @tool decorator
     quick.py        instant offline commands
     timeparse.py    "tomorrow 5pm", "in 10 minutes"
-  skills/           one file per ability (apps, notes, web, utils, system)
+  skills/           one file per ability (apps, notes, web, utils, system,
+                    contacts, reminders, gmail, whatsapp)
   winos/            Windows API wrappers (only place with Windows-specific code)
   ui/               popup, approval cards, settings, tray
 ```

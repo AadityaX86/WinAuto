@@ -6,7 +6,7 @@ import sys
 from dataclasses import dataclass
 
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QColor, QFont, QGuiApplication, QIcon, QLinearGradient, QPainter, QPixmap
+from PySide6.QtGui import QColor, QFont, QGuiApplication, QIcon, QLinearGradient, QPainter, QPalette, QPixmap
 
 
 @dataclass(frozen=True)
@@ -63,6 +63,14 @@ def palette() -> Palette:
     return DARK if is_dark() else LIGHT
 
 
+def apply_palette(app: QGuiApplication, p: Palette) -> None:
+    """Link colours in rich text come from the palette, not the stylesheet."""
+    qp = app.palette()
+    qp.setColor(QPalette.ColorRole.Link, QColor(p.accent))
+    qp.setColor(QPalette.ColorRole.LinkVisited, QColor(p.accent))
+    app.setPalette(qp)
+
+
 def base_font() -> QFont:
     font = QFont()
     font.setFamilies(["Segoe UI Variable Text", "Segoe UI", "Inter", "Noto Sans", "sans-serif"])
@@ -102,6 +110,12 @@ def stylesheet(p: Palette) -> str:
     QGroupBox {{ border: 1px solid {p.border}; border-radius: 8px; margin-top: 12px; padding-top: 8px; font-weight: 600; }}
     QGroupBox::title {{ subcontrol-origin: margin; left: 10px; padding: 0 4px; }}
     QCheckBox {{ spacing: 8px; }}
+    QTabWidget::pane {{ border: 1px solid {p.border}; border-radius: 8px; background: {p.panel}; top: -1px; }}
+    QTabWidget > QStackedWidget > QWidget {{ background: {p.panel}; }}
+    QTabBar::tab {{ background: {p.bot_bg}; color: {p.muted}; border: 1px solid {p.border}; padding: 6px 16px;
+                   border-top-left-radius: 6px; border-top-right-radius: 6px; margin-right: 2px; }}
+    QTabBar::tab:selected {{ background: {p.panel}; color: {p.text}; border-bottom-color: {p.panel}; }}
+    QLabel {{ background: transparent; }}
     """
 
 
