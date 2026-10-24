@@ -13,6 +13,7 @@ log = logging.getLogger(__name__)
 # (module, class) in priority order: earlier skills get first try at quick commands.
 BUILTIN: list[tuple[str, str]] = [
     ("apps", "AppsSkill"),
+    ("notes", "NotesSkill"),
 ]
 
 
