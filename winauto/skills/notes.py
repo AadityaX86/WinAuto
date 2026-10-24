@@ -41,6 +41,7 @@ def _first_words(text: str, n: int = 6) -> str:
 class NotesSkill(Skill):
     name = "notes"
     description = "Notes and todo list."
+    keywords = r"\b(notes?|todos?|to-?do|tasks?|lists?|remember|jot|write down|saved?|done|finish|complete|due|overdue|deadline|password|where did i)\b"
     prompt_hint = (
         "Notes/todos: to answer questions about things the user saved (passwords hints, addresses, plans), "
         "call search_notes first. Todo ids look like #3. Pass due dates in the user's words, e.g. 'tomorrow 5pm'."

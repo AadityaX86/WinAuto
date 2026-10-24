@@ -271,6 +271,11 @@ class Skill:
     description = ""
     # Extra guidance added to the system prompt when this skill is loaded.
     prompt_hint = ""
+    # Regex of words that mean a request probably needs this skill. Only matching
+    # skills' tools are sent to the model, which keeps local models fast.
+    keywords = ""
+    # Always offer this skill's tools (general-purpose ones like web search).
+    always = False
 
     def __init__(self, ctx: Any):
         self.ctx = ctx

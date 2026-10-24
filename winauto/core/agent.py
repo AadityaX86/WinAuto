@@ -117,9 +117,9 @@ class Agent:
     def cancel(self) -> None:
         self._cancel.set()
 
-    def system_prompt(self) -> str:
+    def system_prompt(self, skills=None) -> str:
         now = self.clock()
-        hints = self.registry.prompt_hints()
+        hints = self.registry.prompt_hints(skills)
         return SYSTEM_PROMPT.format(
             now=now.strftime("%A %d %B %Y, %H:%M"),
             user=f" The user's name is {self.user_name}." if self.user_name else "",
@@ -162,10 +162,14 @@ class Agent:
 
     def _run_model(self, text: str) -> AgentReply:
         assert self.llm is not None
-        messages: list[dict[str, Any]] = [{"role": "system", "content": self.system_prompt()}]
+        # Only offer tools that fit this request (and the previous one, for follow-ups
+        # like "send it"); fewer tools means a faster, less confused local model.
+        previous = next((m["content"] for m in reversed(self.history) if m["role"] == "user"), "")
+        skills = self.registry.select(text, previous)
+        messages: list[dict[str, Any]] = [{"role": "system", "content": self.system_prompt(skills)}]
         messages += self.history
         messages.append({"role": "user", "content": text})
-        schemas = self.registry.schemas()
+        schemas = self.registry.schemas(skills)
         steps: list[Step] = []
         seen_calls: set[str] = set()
         last_messages: list[str] = []

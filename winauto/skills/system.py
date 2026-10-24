@@ -54,6 +54,9 @@ def _human_duration(seconds: float) -> str:
 class SystemSkill(Skill):
     name = "system"
     description = "PC controls: volume, brightness, theme, Wi-Fi, Bluetooth, power, battery, health."
+    keywords = (r"\b(volume|sound|mute|unmute|louder|quieter|brightness|bright|dim|screen|dark|light mode|wi-?fi|"
+                r"bluetooth|lock|sleep|shut ?down|restart|reboot|sign out|log ?out|battery|cpu|ram|memory|disk|"
+                r"slow|recycle|trash|settings?|pc|computer|laptop|hotspot|night light)\b")
 
     def __init__(self, ctx: Any, backend: Any = None):
         super().__init__(ctx)

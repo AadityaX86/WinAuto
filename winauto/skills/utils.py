@@ -219,6 +219,8 @@ def find_zone(place: str) -> str | None:
 class UtilsSkill(Skill):
     name = "utils"
     description = "Calculator, unit conversion, world clock."
+    keywords = r"\d|\b(calculate|convert|time in|what time|percent|math)\b"
+    always = True
     prompt_hint = "Math: always use calculate for arithmetic or percentages instead of working it out yourself."
 
     @tool("Calculate a math expression (supports + - * / ^ %, 'of', sqrt, sin...).",

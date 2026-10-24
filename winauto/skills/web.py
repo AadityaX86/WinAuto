@@ -111,6 +111,8 @@ def _unwrap_ddg(href: str) -> str:
 class WebSkill(Skill):
     name = "web"
     description = "Open websites, search the web, read pages, weather."
+    keywords = r"\b(website|site|search|google|browser|url|link|youtube|weather|rain|news|web|online|look up)\b|\.\w{2,}\b"
+    always = True
     prompt_hint = (
         "Web: for facts or anything current, call search_web (results come back to you) and answer "
         "from them with the source name. Call read_webpage on a result if snippets aren't enough. "

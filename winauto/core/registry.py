@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import re
 from typing import Iterable
 
 from winauto.core.skill import Skill, Tool
@@ -40,8 +41,24 @@ class Registry:
     def tools(self) -> list[Tool]:
         return list(self._tools.values())
 
-    def schemas(self) -> list[dict]:
-        return [t.schema() for t in self._tools.values()]
+    def schemas(self, skills: Iterable[Skill] | None = None) -> list[dict]:
+        if skills is None:
+            return [t.schema() for t in self._tools.values()]
+        names = {s.name for s in skills}
+        return [t.schema() for t in self._tools.values() if t.skill in names]
 
-    def prompt_hints(self) -> str:
-        return "\n".join(f"- {s.prompt_hint}" for s in self._skills.values() if s.prompt_hint)
+    def select(self, *texts: str) -> list[Skill]:
+        """Skills a request probably needs. Falls back to all of them when unsure."""
+        joined = " ".join(t for t in texts if t)
+        matched = [
+            s for s in self._skills.values()
+            if s.keywords and re.search(s.keywords, joined, re.I)
+        ]
+        if not matched:
+            return list(self._skills.values())
+        always = [s for s in self._skills.values() if s.always and s not in matched]
+        return matched + always
+
+    def prompt_hints(self, skills: Iterable[Skill] | None = None) -> str:
+        chosen = list(skills) if skills is not None else list(self._skills.values())
+        return "\n".join(f"- {s.prompt_hint}" for s in chosen if s.prompt_hint)

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import sys
+
 import pytest
 
 from winauto.core.quick import QuickMatcher
@@ -146,6 +148,7 @@ def test_list_open_apps(apps):
     assert "**chrome**" in r.message and "(+1 more)" in r.message
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="checks the non-Windows message")
 def test_not_on_windows_message(ctx):
     skill = AppsSkill(ctx)  # real backend on Linux
     r = skill.open_app("spotify")

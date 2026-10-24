@@ -343,3 +343,15 @@ def test_config_roundtrip_and_bad_values(tmp_path):
     assert cfg.llm.num_ctx == 4096 and cfg.hotkey == "ctrl+space" and cfg.llm.model == "qwen3:8b"
     p.write_text("{broken")
     assert isinstance(load_config(p), Config)
+
+
+def test_tool_selection_narrows_and_falls_back(ctx):
+    from winauto.runtime import Runtime
+
+    rt = Runtime(RecordingConfirmer(), db=ctx.db, llm=ScriptedLLM())
+    names = lambda skills: sorted(s.name for s in skills)  # noqa: E731
+    assert names(rt.registry.select("turn the volume down a bit")) == ["system", "utils", "web"]
+    assert "notes" in names(rt.registry.select("add milk to my list"))
+    assert names(rt.registry.select("tell me a joke")) == ["apps", "notes", "system", "utils", "web"]
+    # A follow-up keeps the previous request's skills.
+    assert "notes" in names(rt.registry.select("make it due friday", "todo pay rent"))

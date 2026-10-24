@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import sys
+
 import pytest
 
 from winauto.core.quick import QuickMatcher
@@ -107,6 +109,7 @@ def test_status_tools(system):
     assert skill.battery_status().ok
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="checks the non-Windows message")
 def test_not_on_windows(ctx):
     r = SystemSkill(ctx).set_volume(20)
     assert not r.ok and "Windows" in r.message

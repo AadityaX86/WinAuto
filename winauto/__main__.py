@@ -1,6 +1,8 @@
 import sys
 
-if "--cli" in sys.argv:
+if "--selftest" in sys.argv:
+    from winauto.selftest import main
+elif "--cli" in sys.argv:
     from winauto.cli import main
 else:
     from winauto.app import main

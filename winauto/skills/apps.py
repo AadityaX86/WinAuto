@@ -80,6 +80,7 @@ _STRIP_WORDS = re.compile(r"^(?:the|my|a)\s+|\s+(?:app|application|program|windo
 class AppsSkill(Skill):
     name = "apps"
     description = "Open, close, switch between and list apps."
+    keywords = r"\b(open|launch|start|run|close|quit|exit|kill|switch|apps?|programs?|windows?|running|installed|focus|bring up)\b"
     prompt_hint = (
         "Apps: open_app/close_app take the app's everyday name (e.g. 'chrome', 'vs code'). "
         "For websites use open_website instead."
