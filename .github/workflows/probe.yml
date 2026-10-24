@@ -27,7 +27,7 @@ jobs:
           (Get-FileHash mmproj.gguf -Algorithm SHA256).Hash.ToLower()
           (Get-FileHash engine.zip -Algorithm SHA256).Hash.ToLower()
 
-      - name: Start the server, call tools, stream, read an image (one step: the server dies with its step)
+      - name: Start the server, call tools, stream and read an image in one step
         shell: pwsh
         run: |
           $args = "-m model.gguf --mmproj mmproj.gguf --host 127.0.0.1 --port 8765 -c 8192 -np 1 --jinja --reasoning-budget 0 --fit on --api-key secret --alias winauto"
