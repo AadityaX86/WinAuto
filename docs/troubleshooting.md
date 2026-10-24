@@ -49,7 +49,7 @@
 
 - If nothing happens, look for `%TEMP%\winauto-crash.txt`; it has the error.
 - Windows SmartScreen ("Windows protected your PC"): click **More info → Run anyway**. The app isn't code-signed.
-- Antivirus quarantined it: packaged Python apps are sometimes flagged by mistake. Restore it and add an exception, or [run from source](getting-started.md#option-b-run-from-source).
+- Antivirus quarantined it: packaged Python apps are sometimes flagged by mistake, the single-file exe more often than the zip. Use the zip, or restore it and add an exception, or [run from source](getting-started.md#option-b-run-from-source).
 - Two copies: starting WinAuto again just shows the running one.
 
 ## Reporting a problem

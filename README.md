@@ -30,7 +30,7 @@ Anything that sends, deletes or shuts down shows an approval card first, and dra
 ## Get started
 
 1. Install [Ollama](https://ollama.com/download) and run `ollama pull qwen3:8b` (6–8 GB graphics card; [other sizes](docs/ai-models.md)).
-2. Download **WinAuto-windows** from the latest green run in this repository's **Actions** tab, unzip it, and run `WinAuto.exe`. Or run from source: `pip install -e .` then `python -m winauto`.
+2. Download the **[latest release](https://github.com/AadityaX86/WinAuto/releases/latest)**: the zip (unzip, then run `WinAuto.exe`) or the single `WinAuto-<version>.exe`. Or run from source: `pip install -e .` then `python -m winauto`.
 3. Press **Ctrl+Alt+Space**.
 
 Full steps: [Getting started](docs/getting-started.md). Gmail, WhatsApp, Discord and calendar: [Connect your accounts](docs/connect-accounts.md).

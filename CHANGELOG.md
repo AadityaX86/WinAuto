@@ -38,4 +38,5 @@ The first version: a private assistant and launcher for Windows that runs on a l
 - Works with Ollama or any OpenAI-compatible local server.
 - Clean architecture with typed ports between layers, enforced by tests ([Architecture](docs/architecture.md)).
 - CI on Windows and Linux; every build packages `WinAuto.exe` and runs its self-test.
+- Releases on GitHub with the app as a zip and as a single-file exe, built and self-tested by a release workflow.
 - Full documentation in [docs/](docs/README.md).

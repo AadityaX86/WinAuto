@@ -1,0 +1,100 @@
+name: Release
+
+# Builds WinAuto, self-tests it, and publishes a GitHub release with:
+#   WinAuto-<version>-windows.zip   the app folder (recommended, starts faster)
+#   WinAuto-<version>.exe           the same app as one file
+#   SHA256SUMS.txt
+# Start it from Actions → Release → Run workflow, or by pushing a tag like v0.2.0.
+# The version must match pyproject.toml and have a section in CHANGELOG.md.
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to release, e.g. 0.1.0"
+        required: true
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Build and publish
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Check the version and write release notes
+        id: version
+        shell: pwsh
+        run: |
+          python scripts/release_notes.py "${{ inputs.version || github.ref_name }}" --out notes.md
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+
+      - name: Make sure this version isn't released yet
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view "${{ steps.version.outputs.tag }}" *> $null
+          if ($LASTEXITCODE -eq 0) { throw "Release ${{ steps.version.outputs.tag }} already exists." }
+          exit 0
+
+      - name: Install
+        # Not editable (-e): PyInstaller can't follow editable installs.
+        run: python -m pip install ".[dev]"
+
+      - name: Run tests
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: python -m pytest -q
+
+      - name: Make icon
+        run: python packaging/make_icon.py
+
+      - name: Build the app folder
+        uses: ./.github/actions/build-exe
+
+      - name: Zip the app folder
+        shell: pwsh
+        run: |
+          Compress-Archive -Path dist\WinAuto -DestinationPath "WinAuto-${{ steps.version.outputs.version }}-windows.zip"
+          Remove-Item dist\WinAuto -Recurse -Force   # out of the way of the single-file build
+
+      - name: Build the single-file exe
+        uses: ./.github/actions/build-exe
+        with:
+          onefile: "true"
+
+      - name: Collect files and checksums
+        shell: pwsh
+        run: |
+          $v = "${{ steps.version.outputs.version }}"
+          Copy-Item dist\WinAuto.exe "WinAuto-$v.exe"
+          $files = @("WinAuto-$v-windows.zip", "WinAuto-$v.exe")
+          $files | ForEach-Object {
+            $hash = (Get-FileHash $_ -Algorithm SHA256).Hash.ToLower()
+            "$hash  $_"
+          } | Set-Content -Encoding ascii SHA256SUMS.txt
+          Get-Content SHA256SUMS.txt
+          $files | ForEach-Object { "{0}: {1:N1} MB" -f $_, ((Get-Item $_).Length / 1MB) }
+
+      - name: Publish the release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $v = "${{ steps.version.outputs.version }}"
+          gh release create "v$v" "WinAuto-$v-windows.zip" "WinAuto-$v.exe" SHA256SUMS.txt `
+            --title "WinAuto $v" --notes-file notes.md --target "$env:GITHUB_SHA"
+          if ($LASTEXITCODE -ne 0) { throw "Couldn't create the release" }
