@@ -136,6 +136,8 @@ Paste the link in **Settings → Accounts → Calendar links**. Local events you
 - The tray icon (bottom right, near the clock) has Settings, the data folder, the log file, and Quit.
 - In **Settings**, turn on **Start with Windows**, add your name, and set your weather city. Under **Skills** you can switch off anything you don't use.
 
+![Settings](docs/settings.png)
+
 ## Privacy
 
 - Your notes, todos and settings live in `%APPDATA%\WinAuto` on your PC.
