@@ -42,10 +42,13 @@ def ai_dir() -> Path:
     """Folder for the built-in AI's engine and model files (several GB).
 
     Windows: %LOCALAPPDATA%\\WinAuto\\ai (big files don't belong in the roaming
-    profile). Elsewhere: <data folder>/ai. WINAUTO_HOME overrides both.
+    profile). Elsewhere: <data folder>/ai. WINAUTO_AI_DIR, then WINAUTO_HOME, override that
+    (so test profiles can share one download).
     """
     override = os.environ.get("WINAUTO_HOME")
-    if override:
+    if os.environ.get("WINAUTO_AI_DIR"):
+        path = Path(os.environ["WINAUTO_AI_DIR"])
+    elif override:
         path = Path(override) / "ai"
     elif sys.platform == "win32":
         path = Path(os.environ.get("LOCALAPPDATA", Path.home() / "AppData" / "Local")) / "WinAuto" / "ai"
