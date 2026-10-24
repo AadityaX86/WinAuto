@@ -31,10 +31,12 @@ Ollama starts with Windows and runs in the background. Have a bigger or smaller 
 
 ### Option A: download the app (no Python needed)
 
-1. On GitHub, open the repository's **Actions** tab and click the latest green **CI** run on `main` (you need to be signed in to GitHub to download).
-2. At the bottom, under **Artifacts**, download **WinAuto-windows**.
-3. Unzip it somewhere permanent, for example `C:\Apps\WinAuto`.
-4. Run **WinAuto.exe**. Windows may say "Windows protected your PC" because the app isn't signed: click **More info → Run anyway**.
+1. Open the **[latest release](https://github.com/AadityaX86/WinAuto/releases/latest)** and download one of:
+   - **WinAuto-*version*-windows.zip** (recommended): unzip it somewhere permanent, for example `C:\Apps\WinAuto`, and run **WinAuto.exe** inside. It starts faster.
+   - **WinAuto-*version*.exe**: the same app as one file, nothing to unzip. Put it somewhere permanent before turning on "Start with Windows".
+2. Windows may say "Windows protected your PC" because the app isn't signed: click **More info → Run anyway**.
+
+Builds of the very latest code are also on the repository's **Actions** tab (latest green **CI** run on `main` → **Artifacts** → **WinAuto-windows**; you need to be signed in to GitHub).
 
 ### Option B: run from source
 

@@ -1,0 +1,51 @@
+name: Build and self-test WinAuto.exe
+description: >
+  Packages WinAuto with PyInstaller, then runs the packaged app's --selftest.
+  Expects Python with ".[dev]" installed and packaging/winauto.ico made.
+
+inputs:
+  onefile:
+    description: '"true" for a single WinAuto.exe; "false" for a folder (dist/WinAuto), which starts faster'
+    required: false
+    default: "false"
+
+outputs:
+  exe:
+    description: Path to the built exe
+    value: ${{ steps.build.outputs.exe }}
+
+runs:
+  using: composite
+  steps:
+    - name: Package
+      id: build
+      shell: pwsh
+      run: |
+        $onefile = "${{ inputs.onefile }}" -eq "true"
+        $mode = if ($onefile) { "--onefile" } else { "--onedir" }
+        pyinstaller --noconfirm --clean --windowed $mode --name WinAuto `
+          --icon packaging/winauto.ico `
+          --paths . `
+          --collect-submodules winauto `
+          --collect-submodules keyring `
+          --collect-submodules win32ctypes `
+          --hidden-import pycaw.pycaw `
+          --hidden-import comtypes.stream `
+          packaging/launcher.py
+        if ($LASTEXITCODE -ne 0) { throw "PyInstaller failed" }
+        $exe = if ($onefile) { "dist\WinAuto.exe" } else { "dist\WinAuto\WinAuto.exe" }
+        "exe=$exe" >> $env:GITHUB_OUTPUT
+
+    - name: Self-test the packaged app
+      shell: pwsh
+      run: |
+        $crash = Join-Path $env:TEMP "winauto-crash.txt"
+        Remove-Item $crash -ErrorAction SilentlyContinue
+        $p = Start-Process -FilePath "${{ steps.build.outputs.exe }}" -ArgumentList "--selftest" -PassThru
+        $finished = $p.WaitForExit(180000)
+        if (-not $finished) { Stop-Process -Id $p.Id -Force }
+        Get-ChildItem $env:TEMP -Filter "winauto-selftest-*" | Sort-Object LastWriteTime | Select-Object -Last 1 |
+          ForEach-Object { $f = Join-Path $_.FullName "selftest.txt"; if (Test-Path $f) { Get-Content $f } }
+        if (Test-Path $crash) { Write-Host "--- crash ---"; Get-Content $crash }
+        if (-not $finished) { throw "Self-test hung for 3 minutes" }
+        if ($p.ExitCode -ne 0) { throw "Self-test failed with exit code $($p.ExitCode)" }

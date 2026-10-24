@@ -101,13 +101,21 @@ dist\WinAuto\WinAuto.exe --selftest
 2. **Build WinAuto.exe** on Windows, then run the packaged app's `--selftest` (it must finish within 3 minutes and report OK).
 3. **Upload** the `WinAuto-windows` artifact (kept 30 days).
 
-A newer push to the same branch cancels the older run.
+A newer push to the same branch cancels the older run. Packaging and the self-test live in one place, `.github/actions/build-exe/action.yml`, used by both CI and releases.
 
 ## Releasing
 
-1. Update the version in `pyproject.toml` and `winauto/__init__.py`, and move the "Unreleased" notes in `CHANGELOG.md` under the new version.
+1. Update the version in `pyproject.toml` and `winauto/__init__.py`, and move the "Unreleased" notes in `CHANGELOG.md` under a new `## <version> (<date>)` heading. `tests/test_docs.py` checks that these agree.
 2. Merge to `main` and wait for CI to go green.
-3. Download the `WinAuto-windows` artifact from that run, zip it as `WinAuto-<version>-windows.zip`, and attach it to a GitHub release tagged `v<version>`.
+3. On GitHub: **Actions → Release → Run workflow**, enter the version (e.g. `0.2.0`) and run it. Pushing a tag like `v0.2.0` does the same.
+
+`.github/workflows/release.yml` then:
+- checks the version against `pyproject.toml`, `winauto/__init__.py` and `CHANGELOG.md`;
+- runs the tests on Windows;
+- builds the app folder and a single-file exe, self-testing each;
+- publishes release `v<version>` with `WinAuto-<version>-windows.zip`, `WinAuto-<version>.exe` and `SHA256SUMS.txt`.
+
+The release notes come from that version's `CHANGELOG.md` section plus download instructions (`scripts/release_notes.py`; run it locally to preview).
 
 ## Project layout
 

@@ -66,3 +66,16 @@ def test_adding_a_skill_example_works(ctx):
     assert skill.count() == 0
     names = {t["function"]["name"] for t in registry.schemas()}
     assert names == {"log_water", "water_today", "reset_water"}
+
+
+def test_versions_agree_and_have_release_notes():
+    rn = _load(ROOT / "scripts" / "release_notes.py", "release_notes")
+    versions = set(rn.project_versions().values())
+    assert len(versions) == 1, f"pyproject.toml and winauto/__init__.py disagree: {rn.project_versions()}"
+    version = versions.pop()
+    notes = rn.render(f"v{version}", "owner/repo")
+    assert f"WinAuto-{version}-windows.zip" in notes and "## What's new" in notes
+    assert "](https://github.com/owner/repo/blob/v" in notes  # relative links made absolute
+    assert "](docs/" not in notes and "](../" not in notes
+    with pytest.raises(rn.ReleaseError):
+        rn.render("99.0.0")
