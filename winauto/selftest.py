@@ -28,10 +28,17 @@ def main() -> int:
             failures += 1
             lines.append(f"FAIL {name}:\n{traceback.format_exc()}")
 
-    from winauto.core.agent import DenyAll
-    from winauto.runtime import Runtime
+    try:
+        from winauto.core.agent import DenyAll
+        from winauto.runtime import Runtime
 
-    rt = Runtime(DenyAll())
+        rt = Runtime(DenyAll())
+    except Exception:
+        report = "FAIL startup:\n" + traceback.format_exc()
+        (home / "selftest.txt").write_text(report, encoding="utf-8")
+        if sys.stdout is not None:
+            print(report)
+        return 1
     expected_skills = {"apps", "notes", "web", "utils", "system", "contacts", "reminders", "email", "whatsapp"}
 
     def skills():
@@ -79,7 +86,8 @@ def main() -> int:
     check("credential manager", secrets_store)
 
     def ui():
-        os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+        if sys.platform != "win32":
+            os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
         from PySide6.QtWidgets import QApplication
 
         from winauto.ui.popup import PopupWindow
@@ -89,7 +97,7 @@ def main() -> int:
         popup = PopupWindow(DARK)
         popup.add_bot("hello")
         app.processEvents()
-        return "popup ok"
+        return f"popup ok ({app.platformName()})"
 
     check("ui", ui)
     rt.stop()

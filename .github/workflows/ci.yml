@@ -32,6 +32,7 @@ jobs:
     name: Build WinAuto.exe
     needs: test
     runs-on: windows-latest
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -53,12 +54,16 @@ jobs:
           packaging/launcher.py
       - name: Self-test the packaged app
         shell: pwsh
-        env:
-          QT_QPA_PLATFORM: offscreen
+        timeout-minutes: 5
         run: |
-          $p = Start-Process -FilePath dist\WinAuto\WinAuto.exe -ArgumentList "--selftest" -Wait -PassThru
+          $p = Start-Process -FilePath dist\WinAuto\WinAuto.exe -ArgumentList "--selftest" -PassThru
+          $finished = $p.WaitForExit(180000)
+          if (-not $finished) { Stop-Process -Id $p.Id -Force }
           Get-ChildItem $env:TEMP -Filter "winauto-selftest-*" | Sort-Object LastWriteTime | Select-Object -Last 1 |
-            ForEach-Object { Get-Content (Join-Path $_.FullName "selftest.txt") }
+            ForEach-Object { $f = Join-Path $_.FullName "selftest.txt"; if (Test-Path $f) { Get-Content $f } }
+          $crash = Join-Path $env:TEMP "winauto-crash.txt"
+          if (Test-Path $crash) { Write-Host "--- crash ---"; Get-Content $crash }
+          if (-not $finished) { throw "Self-test hung for 3 minutes" }
           if ($p.ExitCode -ne 0) { throw "Self-test failed with exit code $($p.ExitCode)" }
       - name: Upload
         uses: actions/upload-artifact@v4
