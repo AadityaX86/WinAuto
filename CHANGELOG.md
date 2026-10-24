@@ -35,6 +35,7 @@ Fixes and polish from using WinAuto the way a new user would, on a real Windows 
 ### Built-in AI
 - Answers are capped in length and always streamed. Before, one slow or rambling answer on a PC without a graphics card could keep the engine busy after WinAuto gave up waiting, so the next questions timed out too.
 - When the AI is too slow, the message says why (no graphics card) and what helps (shorter requests, the small model).
+- Faster follow-up questions: the instructions and tool list sent to the AI stay the same all day (the time now goes with each question), so the engine reuses its work instead of reading them again every minute.
 - "Fix grammar" corrects mistakes instead of sometimes returning the text unchanged.
 - Settings records shortcuts by pressing them, instead of typing "ctrl+alt+space"; Backspace turns the writing-tools shortcut off.
 

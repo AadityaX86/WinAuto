@@ -181,7 +181,10 @@ def test_history_and_system_prompt():
     msgs = llm.calls[1]["messages"]
     assert "Saturday 24 October 2026" in msgs[0]["content"] and "Aaditya" in msgs[0]["content"]
     assert "Demo hint." in msgs[0]["content"]
-    assert [m["content"] for m in msgs[1:]] == ["first", "one", "second"]
+    assert [m["content"] for m in msgs[1:3]] == ["first", "one"]  # history as typed
+    # The time goes with the new question, so the system prompt stays the same all day (prompt cache).
+    assert msgs[3]["content"].startswith("second\n\n(Time now: ") and ":" in msgs[3]["content"][-7:]
+    assert llm.calls[0]["messages"][0]["content"] == msgs[0]["content"]
 
 
 def test_llm_error_message():

@@ -86,7 +86,7 @@ class AgentReply:
 
 SYSTEM_PROMPT = """You are WinAuto, an assistant running on the user's Windows PC. You do everyday tasks for them by calling tools.
 
-Now: {now}.{user}
+Today is {today}.{user}
 
 Rules:
 - If a request needs an action or the user's own data (apps, notes, todos, email, messages, files, settings), call a tool. Do it; don't just describe it.
@@ -151,8 +151,10 @@ class Agent:
         now = self.clock()
         hints = self.registry.prompt_hints(skills)
         context = self.registry.prompt_contexts()
+        # Only the date here: this text and the tool list stay the same all day, so the engine can reuse
+        # its work on them from one question to the next. The time goes with the question (see below).
         return SYSTEM_PROMPT.format(
-            now=now.strftime("%A %d %B %Y, %H:%M"),
+            today=now.strftime("%A %d %B %Y"),
             user=f" The user's name is {self.user_name}." if self.user_name else "",
             hints=("\nSkill notes:\n" + hints) if hints else "",
         ) + (("\n" + context) if context else "")
@@ -199,7 +201,7 @@ class Agent:
         skills = self._choose_skills(text, previous)
         messages: list[dict[str, Any]] = [{"role": "system", "content": self.system_prompt(skills)}]
         messages += self.history
-        messages.append({"role": "user", "content": text})
+        messages.append({"role": "user", "content": f"{text}\n\n(Time now: {self.clock().strftime('%H:%M')})"})
         schemas = self.registry.schemas(skills)
         steps: list[Step] = []
         seen_calls: set[str] = set()
