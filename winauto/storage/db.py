@@ -59,6 +59,14 @@ MIGRATIONS: list[str] = [
     );
     CREATE INDEX reminders_due ON reminders(active, due_at);
     """,
+    # 3: routines
+    """
+    CREATE TABLE routines (
+        name TEXT PRIMARY KEY COLLATE NOCASE,
+        steps TEXT NOT NULL,
+        created_at TEXT NOT NULL
+    );
+    """,
 ]
 
 

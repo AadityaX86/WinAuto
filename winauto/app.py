@@ -33,6 +33,7 @@ Things to try:
 class _Signals(QObject):
     toggle = Signal()
     show = Signal()
+    hide = Signal()
 
 
 def _tell_running_instance() -> bool:
@@ -89,6 +90,7 @@ def main(argv: list[str] | None = None) -> int:
     signals = _Signals()
     signals.toggle.connect(popup.toggle)
     signals.show.connect(popup.show_popup)
+    signals.hide.connect(popup.hide)
 
     state: dict[str, object] = {"hotkey": None, "settings": None}
 
@@ -112,6 +114,20 @@ def main(argv: list[str] | None = None) -> int:
     runtime = Runtime(confirmer, notify=tray.notify, on_status=controller.on_status)
     controller.runtime = runtime
     runtime.ctx.services["show_popup"] = signals.show.emit
+    runtime.ctx.services["hide_popup"] = signals.hide.emit
+
+    def on_hotkey() -> None:
+        # Remember the window you were in, so "snap this left" knows what "this" is.
+        if sys.platform == "win32" and not popup.isVisible():
+            try:
+                from winauto.winos.windows import WindowsLayout
+
+                hwnd = WindowsLayout().foreground()
+                if hwnd and hwnd != int(popup.winId()):
+                    runtime.ctx.services["last_window"] = hwnd
+            except Exception:
+                log.debug("couldn't read the foreground window", exc_info=True)
+        signals.toggle.emit()
     runtime.start()
     tray.set_hotkey(runtime.config.hotkey)
 
@@ -119,7 +135,7 @@ def main(argv: list[str] | None = None) -> int:
         old = state["hotkey"]
         if old is not None:
             old.stop()  # type: ignore[attr-defined]
-        listener = HotkeyListener(runtime.config.hotkey, signals.toggle.emit)
+        listener = HotkeyListener(runtime.config.hotkey, on_hotkey)
         if not listener.start():
             log.warning("Hotkey: %s", listener.error)
             if sys.platform == "win32":

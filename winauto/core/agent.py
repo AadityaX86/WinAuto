@@ -44,6 +44,19 @@ class Confirmer(Protocol):
     def confirm(self, request: ConfirmRequest) -> Decision: ...
 
 
+def _parse_names(content: str) -> list[str] | None:
+    import re
+
+    m = re.search(r"\[[^\[\]]*\]", content or "")
+    if not m:
+        return None
+    try:
+        names = json.loads(m.group(0))
+    except ValueError:
+        return None
+    return [str(n).strip().lower() for n in names] if isinstance(names, list) else None
+
+
 class DenyAll:
     def confirm(self, request: ConfirmRequest) -> Decision:
         return Decision(False)
@@ -81,6 +94,18 @@ Rules:
 - When writing emails or messages for the user, write them in the user's voice, ready to send.
 - Keep replies short: one to three sentences or a short list. No preamble.
 {hints}"""
+
+
+ROUTER_PROMPT = """Decide which tool groups a request to a Windows PC assistant needs.
+
+Groups:
+{groups}
+
+Reply with only a JSON list of group names, e.g. ["apps"] or ["notes", "reminders"].
+Reply [] if the request is just conversation or general knowledge."""
+
+# Below this many tokens of tool definitions, just send them all.
+ROUTING_THRESHOLD = 2500
 
 
 class Agent:
@@ -165,7 +190,7 @@ class Agent:
         # Only offer tools that fit this request (and the previous one, for follow-ups
         # like "send it"); fewer tools means a faster, less confused local model.
         previous = next((m["content"] for m in reversed(self.history) if m["role"] == "user"), "")
-        skills = self.registry.select(text, previous)
+        skills = self._choose_skills(text, previous)
         messages: list[dict[str, Any]] = [{"role": "system", "content": self.system_prompt(skills)}]
         messages += self.history
         messages.append({"role": "user", "content": text})
@@ -212,6 +237,29 @@ class Agent:
                 return AgentReply("\n".join(last_messages), steps, True)
 
         return AgentReply("\n".join(last_messages) or "I couldn't finish that one.", steps, True)
+
+    def _choose_skills(self, text: str, previous: str) -> list:
+        matched = self.registry.matched(text, previous)
+        if matched:
+            return self.registry.with_always(matched)
+        everything = self.registry.skills
+        if self.registry.schema_size() <= ROUTING_THRESHOLD:
+            return everything
+        # No keyword matched and all tools won't fit comfortably in a local model's
+        # context: a quick, tool-free call picks the groups instead.
+        self.on_status("Thinking…")
+        groups = "\n".join(f"- {s.name}: {s.description}" for s in everything)
+        reply = self.llm.chat(
+            [{"role": "system", "content": ROUTER_PROMPT.format(groups=groups)}, {"role": "user", "content": text}],
+            [],
+        )
+        names = _parse_names(reply.content)
+        if names is None:
+            log.info("Router reply not understood (%r); offering every tool", reply.content[:200])
+            return everything
+        chosen = [s for s in everything if s.name in names]
+        log.info("Router picked %s", [s.name for s in chosen])
+        return self.registry.with_always(chosen)
 
     def run_tool(self, call: ToolCall) -> ToolResult:
         tool = self.registry.get(call.name)

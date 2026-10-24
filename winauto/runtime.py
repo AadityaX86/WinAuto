@@ -33,6 +33,7 @@ class Runtime:
         if notify:
             self.ctx.notify = notify
         self.registry = build_registry(self.ctx)
+        self.ctx.services["skills"] = {s.name: s for s in self.registry.skills}
         self.llm = llm or make_client(self.config.llm)
         self.agent = Agent(
             self.registry,
@@ -44,6 +45,10 @@ class Runtime:
             user_name=self.config.user_name,
             on_status=on_status,
         )
+        # Routines replay simple commands through the same path (with approvals).
+        self._matcher = QuickMatcher(self.registry)
+        self.ctx.services["quick_match"] = self._matcher.match
+        self.ctx.services["run_tool"] = self.agent.run_tool
 
     def start(self) -> None:
         for skill in self.registry.skills:

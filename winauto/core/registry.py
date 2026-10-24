@@ -47,17 +47,25 @@ class Registry:
         names = {s.name for s in skills}
         return [t.schema() for t in self._tools.values() if t.skill in names]
 
+    def matched(self, *texts: str) -> list[Skill]:
+        """Skills whose keywords appear in the text (may be empty)."""
+        joined = " ".join(t for t in texts if t)
+        return [s for s in self._skills.values() if s.keywords and re.search(s.keywords, joined, re.I)]
+
+    def with_always(self, skills: Iterable[Skill]) -> list[Skill]:
+        chosen = list(skills)
+        return chosen + [s for s in self._skills.values() if s.always and s not in chosen]
+
     def select(self, *texts: str) -> list[Skill]:
         """Skills a request probably needs. Falls back to all of them when unsure."""
-        joined = " ".join(t for t in texts if t)
-        matched = [
-            s for s in self._skills.values()
-            if s.keywords and re.search(s.keywords, joined, re.I)
-        ]
-        if not matched:
-            return list(self._skills.values())
-        always = [s for s in self._skills.values() if s.always and s not in matched]
-        return matched + always
+        matched = self.matched(*texts)
+        return self.with_always(matched) if matched else list(self._skills.values())
+
+    def schema_size(self, skills: Iterable[Skill] | None = None) -> int:
+        """Rough token count of the tool definitions."""
+        import json
+
+        return len(json.dumps(self.schemas(skills))) // 4
 
     def prompt_hints(self, skills: Iterable[Skill] | None = None) -> str:
         chosen = list(skills) if skills is not None else list(self._skills.values())

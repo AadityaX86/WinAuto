@@ -356,3 +356,33 @@ def test_tool_selection_narrows_and_falls_back(ctx):
     assert "whatsapp" in names(rt.registry.select("tell ram I'm running late"))
     # A follow-up keeps the previous request's skills.
     assert "notes" in names(rt.registry.select("make it due friday", "todo pay rent"))
+
+
+def test_router_picks_groups_for_unmatched_requests(ctx):
+    from winauto.runtime import Runtime
+
+    llm = ScriptedLLM('["media"]', "Here's something relaxing.")
+    rt = Runtime(RecordingConfirmer(), db=ctx.db, llm=llm)
+    rt.agent.handle("I need something relaxing in my ears")
+    router_call, main_call = llm.calls
+    assert router_call["tools"] == [] and "- media:" in router_call["messages"][0]["content"]
+    offered = {t["function"]["name"] for t in main_call["tools"]}
+    assert "play_music" in offered and "search_web" in offered and "add_todo" not in offered
+
+
+def test_router_bad_reply_offers_everything(ctx):
+    from winauto.runtime import Runtime
+
+    llm = ScriptedLLM("no idea", "ok")
+    rt = Runtime(RecordingConfirmer(), db=ctx.db, llm=llm)
+    rt.agent.handle("hmm hmm")
+    assert len(llm.calls[1]["tools"]) == len(rt.registry.tools)
+
+
+def test_keyword_match_skips_router(ctx):
+    from winauto.runtime import Runtime
+
+    llm = ScriptedLLM("done")
+    rt = Runtime(RecordingConfirmer(), db=ctx.db, llm=llm)
+    rt.agent.handle("email ram about friday's lunch plans")
+    assert len(llm.calls) == 1 and "send_email" in {t["function"]["name"] for t in llm.calls[0]["tools"]}

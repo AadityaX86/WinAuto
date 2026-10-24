@@ -23,10 +23,14 @@ The AI runs **on your own PC** (via [Ollama](https://ollama.com)), so your reque
 | WhatsApp | `tell Ram I'm running 10 minutes late on WhatsApp` · `whatsapp mom: reached home` |
 | Reminders | `remind me to call mom at 6pm` · `remind me to drink water every day at 10am` · `pasta timer 8 min` · `show my reminders` |
 | Contacts | `add contact Ram Sharma ram@example.com +977 9800000000` · `what's Sita's number` · import from Google Contacts (.csv/.vcf) |
+| Discord | `discord didi: are you on tonight?` · `DM Ram on Discord that the game starts at 9` |
+| Files | `open downloads` · `find my resume pdf` · `open the budget spreadsheet` · `organize my downloads` · `what's taking up space` |
+| Clipboard | copy some text, then `summarize this` · `translate what I copied to Nepali` · `fix the grammar` · `clipboard history` |
+| Music | `pause` · `next song` · `what's playing` · `play lofi beats` (plays the top YouTube video) · `play jazz on spotify` |
+| Windows | `snap chrome left` · `put chrome and vs code side by side` · `maximize` · `minimize everything` · `take a screenshot` · `snip` |
+| Routines | `create a routine called work mode that opens vs code, opens slack and sets volume to 20`, then just say `work mode` |
 
 Anything that sends, deletes or shuts down shows a card first, and nothing happens until you press the button. Email and message drafts can be edited on that card before sending.
-
-Coming next: Discord, files, clipboard, media keys, window snapping, screenshots, and routines.
 
 ## Setup
 
@@ -96,6 +100,7 @@ The code is stored in Windows Credential Manager. To revoke it at any time, dele
 
 - Your notes, todos and settings live in `%APPDATA%\WinAuto` on your PC.
 - Requests go to the AI model on your own PC (Ollama). Nothing goes to an AI company.
+- Clipboard history is kept in memory only and disappears when WinAuto quits.
 - Web searches go to DuckDuckGo, and weather comes from wttr.in. Only the search words or city are sent.
 - Email goes directly between your PC and Gmail. The app password lives in Windows Credential Manager.
 
@@ -110,6 +115,7 @@ The code is stored in Windows Credential Manager. To revoke it at any time, dele
 | Brightness doesn't change | Brightness control only works on built-in laptop screens. |
 | Gmail "rejected the sign-in" | Make a new app password (step 3) and paste it in Settings. Your normal password won't work. |
 | WhatsApp message typed but not sent | Keep WhatsApp signed in. If another window jumps in front, WinAuto won't press Enter; press it yourself. |
+| Discord message went to the wrong chat | Save the person's exact Discord username in their contact (`update contact Sita discord sita_k`), or turn off auto-send in Settings to check before pressing Enter. |
 | Something else | Tray icon → **Open log file**, and share the last lines. |
 
 Check a packaged build with `WinAuto.exe --selftest` (writes a report to your temp folder).
@@ -135,7 +141,8 @@ winauto/
     quick.py        instant offline commands
     timeparse.py    "tomorrow 5pm", "in 10 minutes"
   skills/           one file per ability (apps, notes, web, utils, system,
-                    contacts, reminders, gmail, whatsapp)
+                    contacts, reminders, gmail, whatsapp, discord, files,
+                    clipboard, media, window_layout, routines)
   winos/            Windows API wrappers (only place with Windows-specific code)
   ui/               popup, approval cards, settings, tray
 ```

@@ -21,6 +21,12 @@ BUILTIN: list[tuple[str, str]] = [
     ("reminders", "RemindersSkill"),
     ("gmail", "EmailSkill"),
     ("whatsapp", "WhatsAppSkill"),
+    ("discord", "DiscordSkill"),
+    ("files", "FilesSkill"),
+    ("clipboard", "ClipboardSkill"),
+    ("media", "MediaSkill"),
+    ("window_layout", "WindowLayoutSkill"),
+    ("routines", "RoutinesSkill"),
 ]
 
 

@@ -57,6 +57,7 @@ class Config:
     max_steps: int = 6
     use_quick_commands: bool = True
     weather_location: str = ""
+    music_service: str = "youtube"  # youtube or spotify
     extra_sites: dict[str, str] = field(default_factory=dict)
     app_aliases: dict[str, str] = field(default_factory=dict)
 

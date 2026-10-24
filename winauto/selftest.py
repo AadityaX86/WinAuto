@@ -39,7 +39,8 @@ def main() -> int:
         if sys.stdout is not None:
             print(report)
         return 1
-    expected_skills = {"apps", "notes", "web", "utils", "system", "contacts", "reminders", "email", "whatsapp"}
+    expected_skills = {"apps", "notes", "web", "utils", "system", "contacts", "reminders", "email", "whatsapp",
+                       "discord", "files", "clipboard", "media", "windows", "routines"}
 
     def skills():
         loaded = {s.name for s in rt.registry.skills}
