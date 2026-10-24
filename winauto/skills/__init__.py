@@ -42,10 +42,15 @@ BUILTIN: list[tuple[str, str]] = [
 
 def build_registry(ctx) -> Registry:
     registry = Registry()
+    disabled = set(getattr(ctx.config, "disabled_skills", []) or [])
     for module_name, class_name in BUILTIN:
+        if module_name in disabled:
+            continue
         try:
             module = importlib.import_module(f"winauto.skills.{module_name}")
             skill_cls: type[Skill] = getattr(module, class_name)
+            if skill_cls.name in disabled:
+                continue
             registry.add(skill_cls(ctx))
         except Exception:
             # One broken skill shouldn't stop the rest of the app.

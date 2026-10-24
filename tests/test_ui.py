@@ -36,6 +36,7 @@ def wait_for(app, predicate, timeout=5.0):
 class _Runtime:
     def __init__(self, agent):
         self.agent = agent
+        self.registry = agent.registry
 
 
 def _setup(qapp, llm):
@@ -72,7 +73,7 @@ def test_full_request_with_confirmation(qapp):
     card.ok_btn.click()
     assert wait_for(qapp, lambda: any("Sent to bo" in t for t in _bubble_texts(popup)))
     assert skill.sent == [("bo", "edited body")]
-    assert popup.send_btn.text() == "Send"
+    assert not popup.is_busy() and popup.mode == "chat"
 
 
 def test_stop_cancels_waiting_card(qapp):
@@ -92,13 +93,15 @@ def test_stop_cancels_waiting_card(qapp):
 def test_settings_dialog_collects_values(qapp):
     from winauto.ui.settings import SettingsDialog
 
-    dialog = SettingsDialog(Config())
+    dialog = SettingsDialog(Config(), skills=[("apps", "Open apps"), ("notes", "Notes")])
     dialog.model.setCurrentText("llama3.1:8b")
+    dialog._skill_toggles["notes"].setChecked(False)
     dialog.hotkey.setText("ctrl+shift+k")
     got = []
     dialog.saved.connect(got.append)
     dialog._save()
     assert got and got[0].llm.model == "llama3.1:8b" and got[0].hotkey == "ctrl+shift+k"
+    assert got[0].disabled_skills == ["notes"]
     dialog2 = SettingsDialog(Config())
     dialog2.hotkey.setText("banana")
     dialog2._save()
@@ -114,3 +117,34 @@ def test_hotkey_parsing():
     for bad in ("space", "ctrl+alt", "ctrl+a+b"):
         with pytest.raises(ValueError):
             parse_hotkey(bad)
+
+
+def test_launcher_flow(qapp, ctx):
+    """Typing shows results; Enter runs the selected one; copy results flash and hide."""
+    from fakes import RecordingConfirmer
+    from winauto.runtime import Runtime
+    from winauto.ui.controller import Controller, QtConfirmer
+    from winauto.ui.popup import PopupWindow
+    from winauto.ui.theme import LIGHT
+
+    popup = PopupWindow(LIGHT)
+    confirmer = QtConfirmer()
+    controller = Controller(popup, confirmer)
+    rt = Runtime(confirmer, db=ctx.db, llm=ScriptedLLM("Paris."))
+    controller.attach(rt)
+    popup.show_popup()
+    assert popup.mode == "home" and popup.home.list.count() >= 3
+    popup.input.setText("12*7")
+    assert popup.mode == "results"
+    assert wait_for(qapp, lambda: popup.results.count() > 0)
+    top = popup.results.current()
+    assert top.title == "= 84"
+    # Writing tools mode
+    controller.open_text_mode("teh quick brown fox")
+    assert popup.mode == "text" and "teh quick" in popup.text_view.quote.text()
+    # Streaming tokens create a live bubble
+    popup.clear()
+    popup.stream_token("")
+    popup.stream_token("Hello ")
+    popup.stream_token("world")
+    assert popup.mode == "chat" and popup.chat._stream_text == "Hello world"

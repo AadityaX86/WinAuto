@@ -52,6 +52,7 @@ class Config:
     llm: LLMConfig = field(default_factory=LLMConfig)
     email: EmailConfig = field(default_factory=EmailConfig)
     messaging: MessagingConfig = field(default_factory=MessagingConfig)
+    theme: str = "system"  # system, dark or light
     hotkey: str = "ctrl+alt+space"
     text_hotkey: str = "ctrl+alt+t"  # writing tools for the selected text
     start_with_windows: bool = False
@@ -67,6 +68,7 @@ class Config:
     morning_briefing: bool = True  # show the daily briefing the first time you open WinAuto each morning
     speak_replies: bool = False  # read answers aloud
     focus_block_apps: list[str] = field(default_factory=lambda: ["discord", "steam", "whatsapp", "telegram"])
+    disabled_skills: list[str] = field(default_factory=list)
     extra_sites: dict[str, str] = field(default_factory=dict)
     app_aliases: dict[str, str] = field(default_factory=dict)
 

@@ -26,6 +26,7 @@ class Tray(QSystemTrayIcon):
         on_data_folder: Callable[[], None],
         on_log: Callable[[], None],
         on_quit: Callable[[], None],
+        palette: object | None = None,
     ):
         super().__init__(icon)
         self._icon = icon
@@ -48,6 +49,13 @@ class Tray(QSystemTrayIcon):
         quit_action = QAction("Quit WinAuto", self.menu)
         quit_action.triggered.connect(on_quit)
         self.menu.addAction(quit_action)
+        if palette is not None:
+            from winauto.ui.icons import icon as line_icon
+
+            color = getattr(palette, "text", "#888888")
+            for action, name in zip(self.menu.actions(), ["sparkles", "settings", None, "folder", "note", None, "power"]):
+                if name:
+                    action.setIcon(line_icon(name, color, 16))
         self.setContextMenu(self.menu)
         self.set_hotkey(hotkey)
         self.activated.connect(
