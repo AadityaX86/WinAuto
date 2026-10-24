@@ -14,7 +14,7 @@ from functools import lru_cache
 from typing import Any
 
 from winauto.core.matching import normalize
-from winauto.core.skill import QuickRule, Skill, ToolResult, fail, ok, tool
+from winauto.core.skill import QuickRule, Skill, Suggestion, ToolResult, fail, ok, tool
 
 # ---------------- calculator ----------------
 
@@ -259,6 +259,27 @@ class UtilsSkill(Skill):
         rel = "same time as you" if diff_h == 0 else (
             f"{abs(diff_h):g} h {'ahead of' if diff_h > 0 else 'behind'} you")
         return ok(f"It's **{now.strftime('%I:%M %p').lstrip('0')}** on {now.strftime('%A')} in {place.strip().title()} ({rel}).")
+
+    def suggest(self, query: str) -> list[Suggestion]:
+        q = re.sub(r"^(?:what(?:'s| is)\s+|calculate\s+|calc\s+|=\s*)", "", query.strip(), flags=re.I).rstrip("=? ")
+        out = []
+        if re.search(r"\d", q) and re.search(r"[+\-*/^×÷%x]|\bof\b|sqrt|plus|minus|times|divided", q):
+            try:
+                value = format_number(calculate_expression(q))
+                out.append(Suggestion(title=f"= {value}", subtitle=q, tool="set_clipboard", args={"text": value.replace(",", "")},
+                                      kind="Copy", icon="calculator", score=99))
+            except Exception:
+                pass
+        m = re.fullmatch(r"(?:convert\s+)?(-?[\d.,]+)\s*([a-z°\"' /²]+?)\s+(?:to|in|into)\s+([a-z° /²]+)", q, re.I)
+        if m:
+            try:
+                result, a, b = convert(float(m.group(1).replace(",", "")), m.group(2), m.group(3))
+                value = format_number(round(result, 4))
+                out.append(Suggestion(title=f"= {value} {b}", subtitle=f"{m.group(1)} {a}", tool="set_clipboard",
+                                      args={"text": value.replace(",", "")}, kind="Copy", icon="calculator", score=99))
+            except (ValueError, KeyError):
+                pass
+        return out
 
     def quick_rules(self) -> list[QuickRule]:
         def calc(m):

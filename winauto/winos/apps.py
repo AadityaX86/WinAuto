@@ -6,6 +6,7 @@ import ctypes
 import json
 import logging
 import os
+import re
 import subprocess
 import time
 from dataclasses import asdict, dataclass
@@ -22,6 +23,7 @@ class AppEntry:
     name: str
     target: str
     kind: str  # "appid" (shell:AppsFolder), "path" (exe/lnk), "uri" (ms-settings: etc.)
+    icon: str = ""  # a file whose icon represents the app (exe or shortcut), if known
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -91,15 +93,38 @@ def start_apps() -> list[AppEntry]:
     return apps
 
 
+def appid_path(app_id: str) -> str:
+    """Desktop apps' AppIDs are often '{KnownFolderGUID}\\rest\\of\\path.exe'."""
+    m = re.match(r"^\{([0-9A-Fa-f-]{36})\}\\(.+)$", app_id or "")
+    if m:
+        try:
+            from winauto.winos.folders import _known_folder
+
+            base = _known_folder(m.group(1))
+        except (OSError, AttributeError):  # AttributeError: not on Windows
+            base = None
+        if base:
+            path = base / m.group(2)
+            return str(path) if path.exists() else ""
+    if re.match(r"^[A-Za-z]:\\", app_id or "") and Path(app_id).exists():
+        return app_id
+    return ""
+
+
 class WindowsApps:
     """The real Windows implementation used by the apps skill."""
 
     def installed(self) -> list[AppEntry]:
         require_windows("Finding apps")
         apps = start_apps()
+        shortcuts = scan_shortcuts()
+        by_name = {s.name.lower(): s.target for s in shortcuts}
+        for a in apps:
+            a.icon = by_name.get(a.name.lower()) or appid_path(a.target) or ""
         names = {a.name.lower() for a in apps}
-        for entry in scan_shortcuts():
+        for entry in shortcuts:
             if entry.name.lower() not in names:
+                entry.icon = entry.target
                 apps.append(entry)
                 names.add(entry.name.lower())
         return apps

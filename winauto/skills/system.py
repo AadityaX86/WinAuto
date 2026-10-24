@@ -6,7 +6,7 @@ import logging
 import re
 from typing import Any, Literal
 
-from winauto.core.skill import QuickRule, Risk, Skill, ToolResult, fail, ok, tool
+from winauto.core.skill import QuickRule, Risk, Skill, Suggestion, ToolResult, fail, ok, tool
 from winauto.winos import NotOnWindows
 
 log = logging.getLogger(__name__)
@@ -249,6 +249,46 @@ class SystemSkill(Skill):
     @tool("Empty the Recycle Bin (permanent).", risk=Risk.CONFIRM, confirm_label="Empty it")
     def empty_recycle_bin(self) -> ToolResult:
         return self._run(self.backend.empty_recycle_bin, success="Recycle Bin emptied.")
+
+    # ----- launcher -----
+
+    COMMANDS = [
+        ("Lock PC", "lock_pc", {}, "lock", "lock screen"),
+        ("Sleep", "sleep_pc", {}, "moon", "suspend standby"),
+        ("Shut down", "power_off", {"action": "shutdown"}, "power", "shutdown power off turn off"),
+        ("Restart", "power_off", {"action": "restart"}, "refresh", "reboot"),
+        ("Sign out", "power_off", {"action": "signout"}, "log-out", "log out logoff"),
+        ("Empty Recycle Bin", "empty_recycle_bin", {}, "trash", "trash bin"),
+        ("Dark mode", "dark_mode", {"on": True}, "moon", "theme night"),
+        ("Light mode", "dark_mode", {"on": False}, "sun", "theme day"),
+        ("Mute", "mute", {"mute": True}, "volume-x", "silence sound"),
+        ("Unmute", "mute", {"mute": False}, "volume", "sound on"),
+        ("Battery status", "battery_status", {}, "battery", "charge"),
+        ("PC health", "pc_status", {}, "activity", "cpu ram memory disk status slow"),
+        ("Wi-Fi on", "wifi", {"on": True}, "wifi", "wireless internet"),
+        ("Wi-Fi off", "wifi", {"on": False}, "wifi", "wireless internet"),
+        ("Bluetooth on", "bluetooth", {"on": True}, "bluetooth", ""),
+        ("Bluetooth off", "bluetooth", {"on": False}, "bluetooth", ""),
+    ]
+
+    def suggest(self, query: str) -> list[Suggestion]:
+        from winauto.core.matching import normalize, score
+
+        q = normalize(query)
+        if len(q) < 2:
+            return []
+        out = []
+        for title, tool_name, args, icon, extra in self.COMMANDS:
+            best = max(score(q, title), *(score(q, w) for w in extra.split()) if extra else [0])
+            if best >= 80:
+                out.append(Suggestion(title=title, subtitle="System command", tool=tool_name, args=args,
+                                      kind="Command", icon=icon, score=best - 2))
+        for page in SETTINGS_PAGES:
+            sc = score(q.removesuffix(" settings"), page)
+            if sc >= 80 or (len(q) >= 3 and page.startswith(q)):
+                out.append(Suggestion(title=f"{page.title()} settings", subtitle="Windows Settings", tool="open_settings",
+                                      args={"page": page}, kind="Setting", icon="settings", score=min(sc, 95) - 5))
+        return sorted(out, key=lambda x: -x.score)[:4]
 
     # ----- quick commands -----
 

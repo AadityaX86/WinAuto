@@ -9,7 +9,7 @@ import time
 from typing import Any
 
 from winauto.core.matching import normalize, rank
-from winauto.core.skill import QuickRule, Risk, Skill, ToolResult, fail, ok, tool
+from winauto.core.skill import QuickRule, Risk, Skill, Suggestion, ToolResult, fail, ok, tool
 from winauto.core.timeparse import parse_duration
 from winauto.storage.db import now_iso
 
@@ -107,6 +107,19 @@ class RoutinesSkill(Skill):
             return fail(f"There's no routine called “{name}”.")
         self.db.execute("DELETE FROM routines WHERE name = ?", (routine["name"],))
         return ok(f"Deleted routine “{routine['name']}”.")
+
+    def suggest(self, query: str) -> list[Suggestion]:
+        q = normalize(re.sub(r"^(?:run|start)\s+", "", query.strip(), flags=re.I))
+        if len(q) < 2:
+            return []
+        out = []
+        for r in self.db.query("SELECT name, steps FROM routines"):
+            n = normalize(r["name"])
+            if n.startswith(q) or q in n:
+                steps = json.loads(r["steps"])
+                out.append(Suggestion(title=r["name"], subtitle=" → ".join(steps)[:90], tool="run_routine",
+                                      args={"name": r["name"]}, kind="Routine", icon="zap", score=94 if n == q else 84))
+        return out
 
     def quick_rules(self) -> list[QuickRule]:
         def by_name(m):

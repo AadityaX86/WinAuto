@@ -27,6 +27,8 @@ BUILTIN: list[tuple[str, str]] = [
     ("media", "MediaSkill"),
     ("window_layout", "WindowLayoutSkill"),
     ("routines", "RoutinesSkill"),
+    ("shortcuts", "ShortcutsSkill"),
+    ("tools", "ToolsSkill"),
 ]
 
 

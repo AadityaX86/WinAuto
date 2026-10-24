@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any, Literal
 
 from winauto.core.matching import normalize, rank
-from winauto.core.skill import QuickRule, Risk, Skill, ToolResult, fail, ok, tool
+from winauto.core.skill import QuickRule, Risk, Skill, Suggestion, ToolResult, fail, ok, tool
 from winauto.storage.db import now_iso
 
 EMAIL_RE = re.compile(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+")
@@ -219,6 +219,17 @@ class ContactsSkill(Skill):
                 else:
                     updated += 1
         return ok(f"Imported {added} new contact(s) and updated {updated} from {file.name}.")
+
+    def suggest(self, query: str) -> list[Suggestion]:
+        q = query.strip()
+        if len(q) < 2 or len(q.split()) > 3:
+            return []
+        out = []
+        for row in self.book.find(q)[:2]:
+            detail = row["email"] or row["phone"] or row["discord"]
+            out.append(Suggestion(title=row["name"], subtitle=detail, tool="find_contact", args={"name": row["name"]},
+                                  kind="Contact", icon="user", score=66))
+        return out
 
     def quick_rules(self) -> list[QuickRule]:
         def add(m):

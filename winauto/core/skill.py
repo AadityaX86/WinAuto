@@ -253,6 +253,23 @@ def tool(
 
 
 @dataclass
+class Suggestion:
+    """A live result in the launcher while you type (an app, a setting, a calculation...).
+
+    Choosing it runs `tool` with `args` through the normal path (approval cards
+    included). `score` (0-100) orders results across skills.
+    """
+
+    title: str
+    tool: str
+    args: dict[str, Any] = field(default_factory=dict)
+    subtitle: str = ""
+    kind: str = ""  # short label shown on the right: "App", "Setting", "Copy"...
+    icon: str = ""  # icon name (see ui/icons.py) or "file:<path>" for the file's own icon
+    score: float = 50.0
+
+
+@dataclass
 class QuickRule:
     """A fast, offline shortcut: if `pattern` matches the whole command,
     `handler(match)` returns (tool_name, args) to run without asking the AI.
@@ -281,6 +298,10 @@ class Skill:
         self.ctx = ctx
 
     def quick_rules(self) -> list[QuickRule]:
+        return []
+
+    def suggest(self, query: str) -> list[Suggestion]:
+        """Live launcher results for what's typed so far. Must be fast (no network)."""
         return []
 
     def start(self) -> None:

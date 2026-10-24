@@ -12,7 +12,7 @@ from typing import Any
 
 from winauto.core.matching import normalize, rank, score
 from winauto.core.quick import is_simple
-from winauto.core.skill import QuickRule, Risk, Skill, ToolResult, fail, ok, tool
+from winauto.core.skill import QuickRule, Risk, Skill, Suggestion, ToolResult, fail, ok, tool
 from winauto.winos import NotOnWindows
 from winauto.winos.apps import AppEntry, WindowInfo
 
@@ -217,6 +217,10 @@ class AppsSkill(Skill):
         return names
 
     def find_windows(self, name: str) -> list[WindowInfo]:
+        # An exact window title (from the launcher's window list) wins.
+        exact = [w for w in self.backend.windows() if w.title == name]
+        if exact:
+            return exact
         entry = self.resolve(name)
         procs = self._process_names(name, entry)
         query = normalize(self._clean(name))
@@ -370,6 +374,39 @@ class AppsSkill(Skill):
             return ok(f"I don't see anything like '{query}' installed.")
         names = [n for n, _ in found]
         return ok("Installed: " + ", ".join(names), data={"apps": names})
+
+    # ----- launcher -----
+
+    def _windows_cached(self) -> list[WindowInfo]:
+        now = time.time()
+        if now - getattr(self, "_win_cache_at", 0) > 1.5:
+            try:
+                self._win_cache = self.backend.windows()
+            except Exception:
+                self._win_cache = []
+            self._win_cache_at = now
+        return self._win_cache
+
+    def suggest(self, query: str) -> list[Suggestion]:
+        q = self._clean(re.sub(r"^(?:open|launch|start|run|switch to|go to)\s+", "", query.strip(), flags=re.I))
+        if not q or len(q.split()) > 4:
+            return []
+        apps = self._all_apps()
+        out = []
+        for name, sc in rank(q, apps.keys(), limit=4, cutoff=72):
+            entry = apps[name]
+            icon_file = entry.icon or (entry.target if entry.kind == "path" else "")
+            out.append(Suggestion(title=name, subtitle="Application", tool="open_app", args={"name": name},
+                                  kind="App", icon=f"file:{icon_file}" if icon_file else "app", score=min(sc, 99)))
+        nq = normalize(q)
+        if len(nq) >= 2:
+            for w in self._windows_cached():
+                title_n = normalize(w.title)
+                if nq in title_n or nq in w.exe.lower():
+                    out.append(Suggestion(title=w.title[:80], subtitle=f"Switch to window · {w.exe}", tool="switch_to_app",
+                                          args={"name": w.title}, kind="Window", icon="window",
+                                          score=86 if title_n.startswith(nq) or w.exe.lower().startswith(nq) else 74))
+        return out[:7]
 
     # ----- quick commands -----
 

@@ -10,7 +10,7 @@ from typing import Any, Callable
 
 from winauto.core.matching import normalize
 from winauto.core.quick import is_simple
-from winauto.core.skill import QuickRule, Skill, ToolResult, fail, ok, tool
+from winauto.core.skill import QuickRule, Skill, Suggestion, ToolResult, fail, ok, tool
 from winauto.net import FetchError, fetch, fetch_json, html_to_text, strip_tags
 
 log = logging.getLogger(__name__)
@@ -253,6 +253,29 @@ class WebSkill(Skill):
             return ok(format_weather(data, place), data={"source": "wttr.in"})
         except (KeyError, IndexError, TypeError, ValueError):
             return fail(f"I couldn't find weather for '{place}'.")
+
+    # ----- launcher -----
+
+    def suggest(self, query: str) -> list[Suggestion]:
+        q = query.strip()
+        if not q:
+            return []
+        out = []
+        if looks_like_url(q):
+            out.append(Suggestion(title=f"Open {q}", subtitle="Website", tool="open_website", args={"site": q},
+                                  kind="Website", icon="globe", score=95))
+        key = normalize(re.sub(r"^(?:open|go to|visit)\s+", "", q, flags=re.I))
+        if len(key) >= 2:
+            for name, url in self._sites().items():
+                if name.startswith(key) and len(name) <= len(key) + 12:
+                    out.append(Suggestion(title=f"Open {name.title()}", subtitle=url, tool="open_website",
+                                          args={"site": name}, kind="Website", icon="globe",
+                                          score=90 if name == key else 76))
+        if len(q) >= 2:
+            engine = self.ctx.config.search_engine.capitalize()
+            out.append(Suggestion(title=f"Search {engine} for “{q}”", subtitle="Opens your browser", tool="search_web",
+                                  args={"query": q, "open_in_browser": True}, kind="Web", icon="search", score=15))
+        return out[:5]
 
     # ----- quick commands -----
 

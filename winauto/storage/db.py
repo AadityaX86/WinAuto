@@ -67,6 +67,29 @@ MIGRATIONS: list[str] = [
         created_at TEXT NOT NULL
     );
     """,
+    # 4: launcher history, quick links, snippets, long-term memory
+    """
+    CREATE TABLE history (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        text TEXT NOT NULL,
+        created_at TEXT NOT NULL
+    );
+    CREATE TABLE quicklinks (
+        name TEXT PRIMARY KEY COLLATE NOCASE,
+        url TEXT NOT NULL,
+        created_at TEXT NOT NULL
+    );
+    CREATE TABLE snippets (
+        name TEXT PRIMARY KEY COLLATE NOCASE,
+        text TEXT NOT NULL,
+        created_at TEXT NOT NULL
+    );
+    CREATE TABLE memories (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        fact TEXT NOT NULL,
+        created_at TEXT NOT NULL
+    );
+    """,
 ]
 
 

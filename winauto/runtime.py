@@ -8,6 +8,7 @@ from typing import Callable
 from winauto.config import Config, load_config, save_config
 from winauto.core.agent import Agent, Confirmer
 from winauto.core.context import Context
+from winauto.core.launcher import Launcher
 from winauto.core.llm import LLMClient, make_client
 from winauto.core.quick import QuickMatcher
 from winauto.paths import data_dir, db_path
@@ -49,6 +50,7 @@ class Runtime:
         self._matcher = QuickMatcher(self.registry)
         self.ctx.services["quick_match"] = self._matcher.match
         self.ctx.services["run_tool"] = self.agent.run_tool
+        self.launcher = Launcher(self.registry, self._matcher)
 
     def start(self) -> None:
         for skill in self.registry.skills:

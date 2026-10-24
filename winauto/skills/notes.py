@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 from typing import Any, Literal
 
 from winauto.core.matching import rank
-from winauto.core.skill import QuickRule, Risk, Skill, ToolResult, fail, ok, tool
+from winauto.core.skill import QuickRule, Risk, Skill, Suggestion, ToolResult, fail, ok, tool
 from winauto.core.timeparse import describe, find_when, parse_when
 from winauto.storage.db import now_iso
 
@@ -299,6 +299,22 @@ class NotesSkill(Skill):
             n = self.db.one("SELECT COUNT(*) AS n FROM todos WHERE done = 1")["n"]
             return f"Remove {n} finished todo(s)?"
         return None
+
+    # ---------- launcher ----------
+
+    def suggest(self, query: str) -> list[Suggestion]:
+        q = query.strip().lower()
+        if len(q) < 3 or len(q.split()) > 4:
+            return []
+        out = []
+        for r in self.db.query("SELECT id, title FROM notes WHERE lower(title) LIKE ? OR lower(body) LIKE ? "
+                               "ORDER BY updated_at DESC LIMIT 3", (f"%{q}%", f"%{q}%")):
+            out.append(Suggestion(title=r["title"], subtitle=f"Note #{r['id']}", tool="read_note",
+                                  args={"note_id": r["id"]}, kind="Note", icon="note", score=70))
+        for r in self.db.query("SELECT id, text FROM todos WHERE done = 0 AND lower(text) LIKE ? LIMIT 2", (f"%{q}%",)):
+            out.append(Suggestion(title=f"Mark done: {r['text']}", subtitle=f"Todo #{r['id']}", tool="complete_todo",
+                                  args={"todo": str(r["id"])}, kind="Todo", icon="check", score=62))
+        return out
 
     # ---------- quick commands ----------
 

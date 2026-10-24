@@ -13,7 +13,8 @@ from typing import Any, Callable, Iterator
 
 from rapidfuzz import fuzz
 
-from winauto.core.skill import QuickRule, Risk, Skill, ToolResult, fail, ok, tool
+from winauto.core.matching import normalize
+from winauto.core.skill import QuickRule, Risk, Skill, Suggestion, ToolResult, fail, ok, tool
 from winauto.winos.folders import folder as known_folder
 
 log = logging.getLogger(__name__)
@@ -336,6 +337,20 @@ class FilesSkill(Skill):
             size = human_size(p.stat().st_size) if p.is_file() else "folder"
             return f"Move {p.name} ({size}) to the Recycle Bin?\n{p}"
         return None
+
+    def suggest(self, query: str) -> list[Suggestion]:
+        q = query.strip()
+        out = []
+        if q.startswith("/") and len(q) > 2:
+            out.append(Suggestion(title=f"Find files named “{q[1:].strip()}”", subtitle="Desktop, Documents, Downloads…",
+                                  tool="find_files", args={"query": q[1:].strip()}, kind="Files", icon="search", score=97))
+        key = normalize(re.sub(r"^(?:open\s+)?(?:my\s+)?", "", q.lower())).removesuffix(" folder")
+        if len(key) >= 3:
+            for word, target in FOLDER_WORDS.items():
+                if word.startswith(key) and word == target:
+                    out.append(Suggestion(title=f"{target.title()} folder", subtitle="Open in File Explorer", tool="open_folder",
+                                          args={"folder": target}, kind="Folder", icon="folder", score=88 if word == key else 78))
+        return out
 
     def quick_rules(self) -> list[QuickRule]:
         folders = r"desktop|downloads?|documents?|my documents|pictures|photos|music|videos?|screenshots|onedrive|recycle bin|trash"

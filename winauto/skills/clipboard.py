@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 import logging
+import re
 import threading
 from collections import deque
 from typing import Any
 
-from winauto.core.skill import QuickRule, Skill, ToolResult, fail, ok, tool
+from winauto.core.skill import QuickRule, Skill, Suggestion, ToolResult, fail, ok, tool
 from winauto.winos import NotOnWindows
 
 log = logging.getLogger(__name__)
@@ -108,6 +109,22 @@ class ClipboardSkill(Skill):
         if not 1 <= number <= len(items):
             return fail(f"There's no item {number} in the clipboard history.")
         return self.set_clipboard(items[number - 1])
+
+    def suggest(self, query: str) -> list[Suggestion]:
+        q = query.strip().lower()
+        m = re.match(r"^(?:clip(?:board)?(?:\s+history)?)\s*(.*)$", q)
+        if not m:
+            return []
+        needle = m.group(1)
+        out = []
+        for i, text in enumerate(self.history, 1):
+            one_line = " ".join(text.split())
+            if needle and needle not in one_line.lower():
+                continue
+            out.append(Suggestion(title=one_line[:80] + ("…" if len(one_line) > 80 else ""), subtitle=f"Copied item {i}",
+                                  tool="copy_from_history", args={"number": i}, kind="Copy", icon="clipboard",
+                                  score=90 - i * 0.1))
+        return out[:8]
 
     def quick_rules(self) -> list[QuickRule]:
         return [
