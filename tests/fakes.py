@@ -13,14 +13,17 @@ class ScriptedLLM:
         self.replies = list(replies)
         self.calls = []
 
-    def chat(self, messages, tools):
-        self.calls.append({"messages": [dict(m) for m in messages], "tools": tools})
+    def chat(self, messages, tools, on_token=None, model=None):
+        self.calls.append({"messages": [dict(m) for m in messages], "tools": tools, "model": model})
         if not self.replies:
             return LLMReply("(script ended)")
         r = self.replies.pop(0)
         if isinstance(r, Exception):
             raise r
         if isinstance(r, str):
+            if on_token:
+                for word in r.split(" "):
+                    on_token(word + " ")
             return LLMReply(r)
         if isinstance(r, tuple):  # (name, args)
             return LLMReply("", [ToolCall(r[0], r[1])])

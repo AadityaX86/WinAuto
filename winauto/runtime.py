@@ -51,6 +51,20 @@ class Runtime:
         self.ctx.services["quick_match"] = self._matcher.match
         self.ctx.services["run_tool"] = self.agent.run_tool
         self.launcher = Launcher(self.registry, self._matcher)
+        # For skills that need the model directly (rewriting text, reading the screen...).
+        self.ctx.services["complete"] = self.complete
+
+    def complete(self, system: str, user: str, images: list[str] | None = None,
+                 model: str | None = None, stream: bool = False) -> str:
+        """One-off question to the model, without tools. Streams to the popup if asked."""
+        message: dict = {"role": "user", "content": user}
+        if images:
+            message["images"] = images
+        on_token = self.agent.on_token if stream else None
+        if on_token:
+            on_token("")
+        reply = self.llm.chat([{"role": "system", "content": system}, message], [], on_token=on_token, model=model)
+        return reply.content
 
     def start(self) -> None:
         for skill in self.registry.skills:

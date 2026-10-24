@@ -29,6 +29,9 @@ BUILTIN: list[tuple[str, str]] = [
     ("routines", "RoutinesSkill"),
     ("shortcuts", "ShortcutsSkill"),
     ("tools", "ToolsSkill"),
+    ("memory", "MemorySkill"),
+    ("textactions", "TextActionsSkill"),
+    ("vision", "VisionSkill"),
 ]
 
 

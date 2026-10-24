@@ -282,7 +282,7 @@ def test_full_routing(runtime, text, tool):
 
 
 @pytest.mark.parametrize("text", ["close all tabs", "what is the capital of france", "remind me to call mom",
-                                  "email ram that I'm late", "tell ram I'm late", "summarize this", "restart chrome"])
+                                  "email ram that I'm late", "tell ram I'm late", "restart chrome"])
 def test_full_routing_leaves_for_model(runtime, text):
     assert runtime.ctx.services["quick_match"](text) is None
 

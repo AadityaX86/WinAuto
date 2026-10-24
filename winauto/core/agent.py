@@ -134,6 +134,8 @@ class Agent:
         self.clock = clock
         self.history: list[dict[str, Any]] = []
         self._cancel = threading.Event()
+        # Streams answer text as it's generated. "" means "a new answer starts here".
+        self.on_token: Callable[[str], None] | None = None
 
     # ----- public -----
 
@@ -146,11 +148,12 @@ class Agent:
     def system_prompt(self, skills=None) -> str:
         now = self.clock()
         hints = self.registry.prompt_hints(skills)
+        context = self.registry.prompt_contexts()
         return SYSTEM_PROMPT.format(
             now=now.strftime("%A %d %B %Y, %H:%M"),
             user=f" The user's name is {self.user_name}." if self.user_name else "",
             hints=("\nSkill notes:\n" + hints) if hints else "",
-        )
+        ) + (("\n" + context) if context else "")
 
     def handle(self, text: str) -> AgentReply:
         self._cancel.clear()
@@ -204,7 +207,9 @@ class Agent:
             if self._cancel.is_set():
                 return AgentReply("Stopped.", steps, True)
             self.on_status("Thinking…")
-            reply = self.llm.chat(messages, schemas)
+            if self.on_token:
+                self.on_token("")
+            reply = self.llm.chat(messages, schemas, on_token=self.on_token)
             if not reply.tool_calls:
                 answer = reply.content.strip() or ("\n".join(last_messages) if last_messages else "Done.")
                 return AgentReply(answer, steps, True)

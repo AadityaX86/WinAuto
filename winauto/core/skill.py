@@ -304,6 +304,10 @@ class Skill:
         """Live launcher results for what's typed so far. Must be fast (no network)."""
         return []
 
+    def prompt_context(self) -> str:
+        """Extra text for the system prompt on every request (keep it short)."""
+        return ""
+
     def start(self) -> None:
         """Called once when the app starts (warm caches, start timers...)."""
 

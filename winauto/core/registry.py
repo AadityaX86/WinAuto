@@ -67,6 +67,19 @@ class Registry:
 
         return len(json.dumps(self.schemas(skills))) // 4
 
+    def prompt_contexts(self) -> str:
+        """Dynamic facts skills add to every request (e.g. what you asked WinAuto to remember)."""
+        parts = []
+        for s in self._skills.values():
+            try:
+                text = s.prompt_context()
+            except Exception:
+                log.exception("prompt_context failed in %s", s.name)
+                continue
+            if text:
+                parts.append(text)
+        return "\n".join(parts)
+
     def prompt_hints(self, skills: Iterable[Skill] | None = None) -> str:
         chosen = list(skills) if skills is not None else list(self._skills.values())
         return "\n".join(f"- {s.prompt_hint}" for s in chosen if s.prompt_hint)

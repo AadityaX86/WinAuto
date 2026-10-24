@@ -26,6 +26,9 @@ class LLMConfig:
     keep_alive: str = "30m"
     timeout: float = 180.0
     api_key: str = ""  # only for openai-compatible servers that want one
+    # Used for questions about the screen or images. Must be a vision model.
+    vision_model: str = "qwen2.5vl:7b"
+    stream: bool = True  # show answers as they're written
 
 
 @dataclass
@@ -50,6 +53,7 @@ class Config:
     email: EmailConfig = field(default_factory=EmailConfig)
     messaging: MessagingConfig = field(default_factory=MessagingConfig)
     hotkey: str = "ctrl+alt+space"
+    text_hotkey: str = "ctrl+alt+t"  # writing tools for the selected text
     start_with_windows: bool = False
     search_engine: str = "google"  # google, bing, duckduckgo
     user_name: str = ""
